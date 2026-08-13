@@ -1,0 +1,18 @@
+{
+  "seed_seqs": "seeds.txt",
+  "library": null,
+  "global_library": null,
+  "generations": 50,
+  "pop_size": 50,
+  "w_amy": 1.0,
+  "w_ctr": 1.0,
+  "w_novelty": 0.1,
+  "epsilon": 0.9,
+  "seed": 42,
+  "run_name": "run_003",
+  "msa_backend": "jackhmmer",
+  "workers": null,
+  "queue_host": null,
+  "queue_port": 6379,
+  "resume": true
+}

@@ -1,0 +1,57 @@
+# GA Queue Worker — MSA (mmseqs2) + GNN scoring
+#
+# Runs alongside af3_daemon container on the worker machine.
+# Shares ~/input and ~/outputs volumes with af3_daemon for the trigger/done protocol.
+# Requires Docker socket mount to detect af3_daemon status.
+#
+# Build:
+#   docker build -f Dockerfile.worker -t ga_worker .
+#
+# Run (example):
+#   docker run -d --name ga_worker --gpus all \
+#     -v /var/run/docker.sock:/var/run/docker.sock \
+#     -v ~/input:/root/input \
+#     -v ~/outputs:/root/outputs \
+#     -v /data/mmseqs2_db:/data/mmseqs2_db \
+#     -v ~/af3_ml/models:/app/models \
+#     ga_worker --redis-host <GA_HOST>
+
+FROM pytorch/pytorch:2.1.2-cuda12.1-cudnn8-runtime
+
+# System deps
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        wget docker.io \
+    && rm -rf /var/lib/apt/lists/*
+
+# mmseqs2 static binary
+RUN wget -q https://mmseqs.com/latest/mmseqs-linux-avx2.tar.gz -O /tmp/mmseqs.tar.gz \
+    && tar -xzf /tmp/mmseqs.tar.gz -C /tmp \
+    && mv /tmp/mmseqs/bin/mmseqs /usr/local/bin/mmseqs \
+    && chmod +x /usr/local/bin/mmseqs \
+    && rm -rf /tmp/mmseqs /tmp/mmseqs.tar.gz
+
+# Python deps
+RUN pip install --no-cache-dir \
+        numpy \
+        redis==7.4.0 \
+        torch-geometric==2.7.0
+
+# GA source
+WORKDIR /app
+COPY ga/  ./ga/
+COPY gnn/ ./gnn/
+
+# Runtime volumes:
+#   /data/mmseqs2_db     mmseqs2 UniRef90 DB (read-only)
+#   /app/models          GNN model weights   (read-only)
+#   /root/input          shared with af3_daemon
+#   /root/outputs        shared with af3_daemon
+#   /var/run/docker.sock Docker socket (to detect af3_daemon)
+
+ENV MMSEQS_BIN=/usr/local/bin/mmseqs \
+    MMSEQS_DB=/data/mmseqs2_db/uniref90 \
+    MMSEQS_DB_IDX=/data/mmseqs2_db/uniref90.idx \
+    MMSEQS_THREADS=20 \
+    AF3_DAEMON_CONTAINER=af3_daemon
+
+ENTRYPOINT ["python3", "-m", "ga.queue_worker"]

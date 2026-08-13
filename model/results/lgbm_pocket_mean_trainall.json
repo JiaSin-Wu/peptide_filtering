@@ -1,0 +1,22 @@
+{
+  "model_type": "lgbm",
+  "train_mode": "all",
+  "features": [
+    "A_mean_8A",
+    "B_mean",
+    "AB_mean_8A"
+  ],
+  "config": {
+    "best_n_estimators": 155
+  },
+  "held_out_er04": {
+    "auroc": 0.810304449648712,
+    "auprc": 0.9226568227751417,
+    "f1": 0.7927927927927928,
+    "mcc": 0.389762132468411,
+    "precision": 0.88,
+    "recall": 0.7213114754098361,
+    "accuracy": 0.7195121951219512,
+    "n_samples": 82
+  }
+}

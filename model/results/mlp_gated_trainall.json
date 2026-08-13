@@ -1,0 +1,33 @@
+{
+  "model_type": "mlp_gated",
+  "train_mode": "all",
+  "features": [
+    "single_B_mean",
+    "pair_AB_mean_8A"
+  ],
+  "config": {
+    "gated": true,
+    "n_folds": 10,
+    "epochs": 200,
+    "patience": 50,
+    "dropout": 0.4,
+    "lr": 0.001,
+    "seed": 42,
+    "features": [
+      "single_B_mean",
+      "pair_AB_mean_8A"
+    ],
+    "tag": null,
+    "train_all": true
+  },
+  "held_out_er04": {
+    "auroc": 0.7822014051522248,
+    "auprc": 0.8992534775086249,
+    "f1": 0.847457627118644,
+    "mcc": 0.4611116020016491,
+    "precision": 0.8771929824561403,
+    "recall": 0.819672131147541,
+    "accuracy": 0.7804878048780488,
+    "n_samples": 82
+  }
+}

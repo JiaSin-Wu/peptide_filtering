@@ -1,0 +1,11 @@
+{
+  "model_type": "gat",
+  "hidden_dim": 128,
+  "n_heads": 8,
+  "n_layers": 2,
+  "dropout": 0.1,
+  "ffn": false,
+  "ligand_only": false,
+  "n_models": 5,
+  "cutoff": 8.0
+}

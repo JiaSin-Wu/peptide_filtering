@@ -1,0 +1,30 @@
+{
+  "model_type": "egnn",
+  "config": {
+    "n_models": 5,
+    "epochs": 200,
+    "patience": 50,
+    "hidden": 128,
+    "n_layers": 2,
+    "dropout": 0.1,
+    "lr": 0.0005,
+    "batch": 32,
+    "seed": 42,
+    "label_smoothing": 0.1,
+    "graph_dir": null,
+    "tag": "l2",
+    "train_all": true
+  },
+  "train_mode": "all",
+  "held_out_er04": {
+    "auroc": 0.8696330991412959,
+    "auprc": 0.9324070646095234,
+    "f1": 0.9375,
+    "mcc": 0.7341543994401509,
+    "precision": 0.8955223880597015,
+    "recall": 0.9836065573770492,
+    "accuracy": 0.9024390243902439,
+    "n_samples": 82,
+    "n_fallback": 0
+  }
+}

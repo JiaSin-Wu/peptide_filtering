@@ -1,0 +1,47 @@
+__pycache__/
+*.pyc
+*.pyo
+*.log
+*.png
+*.html
+.env
+*.egg-info/
+dist/
+build/
+
+# Large data/output directories (not tracked in git)
+filter/**/af3_inputs/
+filter/**/af3_outputs/
+filter/**/outputs/
+filter/**/*_results.csv
+filter/**/msa_cache.json
+filter/filter_tracker.csv
+filter/sequences.csv
+filter/**/SEQ_*.txt
+model/data/
+data/graphs/
+data/labels/
+data/train_af3/
+
+# Structure prediction outputs (100+GB, never track)
+structures/
+
+# AF3 daemon I/O (mounted into af3_daemon container, see start_af3_daemon.sh)
+GA/input/
+GA/outputs/
+GA/msa/
+GA/msa_outputs/
+
+# Vendored third-party tool repos - re-fetch separately instead of tracking
+filter/*/tools/algpred2/
+filter/*/tools/toxinpred2/
+filter/*/tools/toxinpred3/
+filter/*/tools/temp_embeddings/
+
+# Downloaded reference database (MMseqs2 human proteome) + scratch dirs
+filter/**/human_proteome*
+filter/**/self_similarity/tmp*/
+
+# Licensed third-party binaries (e.g. FoldX) - not redistributable
+filter/**/foldx
+docking/

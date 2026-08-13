@@ -1,0 +1,37 @@
+{
+  "config": {
+    "n_folds": 10,
+    "n_models": 5,
+    "epochs": 200,
+    "patience": 50,
+    "hidden": 128,
+    "n_heads": 8,
+    "n_layers": 2,
+    "dropout": 0.1,
+    "lr": 0.0005,
+    "batch": 32,
+    "cutoff": 8.0,
+    "seed": 42,
+    "label_smoothing": 0.1,
+    "model_type": "gat",
+    "pretrained_encoder": null,
+    "tag": "gat_h8_drop01",
+    "graph_dir": null,
+    "ffn": false,
+    "ligand_only": false,
+    "train_all": true,
+    "save_model": true
+  },
+  "train_mode": "all",
+  "held_out_er04": {
+    "auroc": 0.8360655737704918,
+    "auprc": 0.8901667208067826,
+    "f1": 0.9384615384615385,
+    "mcc": 0.7397796848093294,
+    "precision": 0.8840579710144928,
+    "recall": 1.0,
+    "accuracy": 0.9024390243902439,
+    "n_samples": 82,
+    "n_fallback": 0
+  }
+}
