@@ -30,7 +30,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 HERE      = Path(__file__).parent
 ROOT      = HERE.parent.parent
-SEQ_CSV   = ROOT / "filter" / "sequences_ga.csv"
+SEQ_CSV   = ROOT / "filter" / "inputs" / "sequences_ga.csv"
 OUTDIR    = HERE / "outputs"
 OUTDIR.mkdir(parents=True, exist_ok=True)
 

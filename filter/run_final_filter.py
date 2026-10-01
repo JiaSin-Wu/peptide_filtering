@@ -4,9 +4,9 @@ run_final_filter.py — Integrate all filter results and apply final criteria
 fully computed for all of them).
 
 Dependencies (must be pre-computed):
-  01_pose_check/results.csv                     <- 01_pose_check/run_pose_check.py
+  01_pose_check/outputs/results_from_md_af3.csv  <- sequence-verified AMY1R/2R/3R structures
   02_binding_energy/rosetta/rosetta_results.csv  <- 02_binding_energy/rosetta/run_rosetta_iface_parallel.py
-  filter_tracker_ga.csv                          <- TANGO aggregation column (see filter_lib.gate_tango)
+  03_aggregation/outputs/tango_results.csv       <- 03_aggregation/run_tango.py
   05_toxicity/outputs/toxinpred3_raw_ga.csv      <- 05_toxicity/run_toxinpred3.py
   04_allergenicity/outputs/AllerCatPro2_prediction_*.csv  <- web upload (manual)
 

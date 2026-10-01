@@ -11,14 +11,14 @@
 > 10 candidates from that run:
 > `P_AMY1R>0.438`, `P_AMY2R>0.3965`, `P_AMY3R>0.355`, `P_CTR<0.330`,
 > `P_CGRP<0.684`, `P_AM1R<0.501`, `P_AM2R<0.604` (the GA's own fitness
-> scores in `sequences_ga.csv`, not this filter pipeline's pose/Rosetta
+> scores in `inputs/sequences_ga.csv`, not this filter pipeline's pose/Rosetta
 > scores) — **92 candidates total**. All 92 (old and new) were then
 > **renamed** `GA_001`–`GA_092`, sorted by descending GA fitness — the old
 > `GA_155`–`GA_246` numbering (a mix of an original hand-picked batch and
 > newly-assigned IDs) no longer means anything and doesn't appear anywhere
 > in this repo any more. If you have an old ID from a conversation or
 > external note, the full old→new mapping is in
-> `id_rename_map_20260826.csv` (old_id,new_id, 92 rows).
+> `metadata/id_rename_map_20260826.csv` (old_id,new_id, 92 rows).
 > **The candidate that currently passes every gate was `GA_160`, now
 > `GA_006`.**
 >
@@ -99,14 +99,11 @@ off-target `pose_pass` values together with its own Rosetta `dG_AB_REU`.
 whoever survives all five gates (`final_pass=1`) — see
 [06 Immunogenicity](#06-immunogenicity--ranking-metric-not-a-hard-gate).
 
-`07_md` (molecular dynamics) exists as an empty stub — planned next validation
-step for whatever survives the filter above, not yet started.
-
 ### Current numbers (`final_results.csv`, 92 GA sequences)
 
 | Gate | Pass |
 |---|---|
-| AMY pose (all 3 amylin receptors dock correctly) | 6 / 92 |
+| AMY pose (all 3 amylin receptors dock correctly) | 7 / 92 |
 | Off-target selectivity (all 4 off-targets) | 87 / 92 |
 | Safety (TANGO + ToxinPred3 + AllerCatPro2) | 6 / 92 |
 | **FINAL PASS (all of the above)** | **1 / 92** |
@@ -121,8 +118,7 @@ binding energy yet, not rejected**. `final_results.csv` carries a
 `final_pass_no_energy` column (`= amy_pose_pass AND safety_pass`, off-target
 selectivity dropped since it is meaningless without ΔG_AB) recording this
 set: `GA_005, GA_006, GA_025, GA_078, GA_079, GA_090` (old `GA_159`–`GA_164`,
-= `filter_tracker_ga.csv` rows with `all_pass=1`). Re-run stage 02 and the
-column becomes redundant with `final_pass` again.
+). Re-run stage 02 and the column becomes redundant with `final_pass` again.
 
 Immunogenicity (n_sb_lt2pct, NetMHCIIpan 4.1 BA Strong Binders, run
 2026-08-26 for `GA_006`, old `GA_160`): **1** strong binder, `n_wb_lt10pct = 8` — see
@@ -145,7 +141,7 @@ chain B = peptide).
   the receptor's deep ECD groove (chain A, residues 80–131 for CTR / 80–129 for
   CLR — ECD boundaries from GPCRdb + UniProt signal peptide annotation).
 - **`pose_pass`** = both checks pass.
-- Output: `01_pose_check/results.csv` (up to `n_candidates × 7` rows — one
+- Output: `01_pose_check/outputs/results.csv` (up to `n_candidates × 7` rows — one
   per `(seq_id, receptor)` pair that has a docked structure).
 - Run: `conda run -n af3_ml python3 filter/01_pose_check/run_pose_check.py`
 
@@ -170,7 +166,7 @@ FoldX interaction energy on the same AF3 structures.
   `FoldX RepairPDB` → `FoldX AnalyseComplex --analyseComplexChains=A,B,C`.
 - Reports pairwise ΔG (kcal/mol) for **A↔B** (receptor↔peptide, the one that
   matters), A↔C (receptor↔RAMP), B↔C (peptide↔RAMP).
-- Output: `02_binding_energy/foldx_results.csv` (`dG_AB`, `dG_AC`, `dG_BC` per
+- Output: `02_binding_energy/outputs/foldx_results.csv` (`dG_AB`, `dG_AC`, `dG_BC` per
   seq × receptor). `amylin` row is the reference baseline for every receptor.
 - Run: `conda run -n PDBFixer python3 filter/02_binding_energy/run_foldx.py
   [--seq ID1,ID2] [--skip-done] [--workers N]` (~143s/structure, parallelizable).
@@ -191,9 +187,9 @@ Amylin reference ΔG_AB (kcal/mol), used as the cutoff everywhere below:
 - **Conditions**: pH 7.4, 310 K, ionic strength 0.1 M, C-term amidated.
 - **Rule**: FAIL if any ≥5 consecutive residues score >5% aggregation
   (TANGO's own APR — Aggregation-Prone Region — definition).
-- Output: `outputs/tango_results.csv` / `outputs/tango_passed.csv` — read by
-  `filter_lib.gate_tango()` directly (no longer via `filter_tracker_ga.csv`,
-  see the caveat in [Files](#files) below).
+- Output: `03_aggregation/outputs/tango_results.csv` and
+  `03_aggregation/outputs/tango_passed.csv`, read directly by
+  `filter_lib.gate_tango()`.
 - Current pass rate (92 candidates, re-run 2026-08-26): 7/92.
 
 ### 04 Allergenicity — AllerCatPro 2.0
@@ -390,7 +386,7 @@ current `sequences_ga.csv` candidate). Per sequence:
   stronger than amylin's, for all three AMY receptors. Would be the "is it a
   better AMY agonist than native amylin" criterion, deliberately not enforced
   at this stage (docking/FoldX affinity isn't a reliable enough proxy for
-  agonism yet — deferred to `07_md`).
+  agonism; dynamic assessment is reported separately in the thesis MD analysis).
 - **`final_pass`** = `amy_pose_pass` AND `offt_pass` AND `safety_pass`.
 - **`final_pass_no_energy`** = `amy_pose_pass` AND `safety_pass` (off-target
   selectivity dropped). Added 2026-08-28 while stage 02 is deferred — see
@@ -440,32 +436,22 @@ additionally writes it under `pipeline_state/<order>/` and adds an
 
 | File | Description |
 |---|---|
-| `sequences_ga.csv` | 92 GA candidate sequences (`GA_001`–`GA_092`, ranked by descending GA fitness) + per-receptor GA fitness scores (AMY1R–AM2R). The original 154 were removed 2026-08-26, replaced with the full run_001 threshold-passing pool, then renamed — see the roster-reset note at the top of this file. |
-| `id_rename_map_20260826.csv` | old_id → new_id mapping from the 2026-08-26 rename (92 rows) |
-| `filter_tracker_ga.csv` | Mixed legacy + current filter columns (see caveat below); stale — still only has the 10-candidate roster from before the 92-candidate expansion, and nothing reads it any more (see caveat) |
-| `final_results.csv` | **Current** integrated result — all 92 candidates, all gates, `final_pass` column |
+| `inputs/sequences_ga.csv` | 92 GA candidate sequences (`GA_001`–`GA_092`, ranked by descending GA fitness) + per-receptor GA fitness scores (AMY1R–AM2R). |
+| `metadata/id_rename_map_20260826.csv` | old_id → new_id mapping from the 2026-08-26 rename (92 rows) |
+| `outputs/` | Consolidated human-readable results: funnel summary, six-candidate final panel, full 92-row table, and the AMY123R pose result link. |
+| `final_results.csv` | Compatibility symlink to `outputs/final_results.csv`. |
 | `filter_lib.py` | **Shared library** — id-list I/O, raw-output loaders, and the five `gate_*` functions that define `final_pass`. Both scripts below import it instead of duplicating the logic. |
 | `run_pipeline.py` | **Current** — order-configurable sequential funnel (`--order 03,04,05,01` default, `02` excluded by default — see [Final integration](#final-integration--run_final_filterpy)). Runs 01/02/03/05 via `conda run -n <env>`, pauses for the manual 04 (AllerCatPro2) step, writes `pipeline_state/<order>/{alive_after_*.txt,audit.csv,final_results.csv}`. `--replay-only` applies the gates to existing output files with no external tool calls (used for the order-equivalence regression check). |
 | `run_final_filter.py` | One-shot integration script → `final_results.csv`, assumes 01-05 already computed for everyone. Also the regression baseline `run_pipeline.py` is checked against. |
-| `run_ga_filters.py` | **Deprecated** — references old folder layout (`01_aggregation/`, `05_allergenicity/`, `06_toxicity/`) that no longer exists after the `01_pose_check`…`07_md` restructure. Do not run; kept for reference only. |
 | `01_pose_check/run_pose_check.py` | Docking pose geometry check. `--seq`/`--seq-file` narrow to a subset, `--extra-id` always adds extra ids (e.g. `amylin`) regardless of that filtering. |
 | `02_binding_energy/rosetta/run_rosetta_iface_parallel.py` | **Current** binding-energy engine — Rosetta `InterfaceAnalyzerMover` dG_AB (REU). One of `--seq`/`--seq-file` is required (no cheap "everything" default, given the per-job cost). `run_rosetta_iface.py` (sequential) and `02_binding_energy/run_foldx.py` (FoldX) are superseded/reference-only — `run_final_filter.py`/`filter_lib.py` only read `rosetta_results.csv`. |
-| `03_aggregation/run_tango.py` | TANGO aggregation. Fixed to read `sequences_ga.csv` (was pointing at a no-longer-existing `sequences.csv`) and gained `--seq`/`--seq-file`/`TANGO_BIN` env override. Re-run end-to-end for the current 92-candidate roster 2026-08-26 — `filter_lib.gate_tango()` now reads `outputs/tango_results.csv` directly, no longer via `filter_tracker_ga.csv`. |
-| `05_toxicity/run_toxinpred3.py` | ToxinPred3 Hybrid Score. Same fix as 03 (`sequences_ga.csv` + `--seq`/`--seq-file`); output renamed to `outputs/toxinpred3_raw_ga.csv` (previously written to `toxinpred3_raw.csv`, requiring a manual rename to match what `filter_lib.py` reads); the internal `toxinpred3.py` subprocess call now uses `sys.executable` instead of a hardcoded `"python3"`, so it actually runs under whatever interpreter/venv `run_toxinpred3.py` itself was launched with. Re-run end-to-end for the current 92-candidate roster 2026-08-26. |
+| `03_aggregation/run_tango.py` | TANGO aggregation. Reads `inputs/sequences_ga.csv`; stage results are written under `03_aggregation/outputs/`. |
+| `05_toxicity/run_toxinpred3.py` | ToxinPred3 hybrid prediction. Reads `inputs/sequences_ga.csv`; stage results are written under `05_toxicity/outputs/`. |
 | `06_immunogenicity/run_netmhciipan_sb.py` | **Current, Step 1** — NetMHCIIpan 4.1 BA, 7-allele, `n_wb_lt10pct` → `netmhciipan_sb_summary.csv` |
 | `06_immunogenicity/integrate_cd4episcore.py` | **Current, Step 2** — applies the Combined Score<43 rule to Step 1's binder peptides → `cd4episcore_summary.csv`, reference only (not gating). Consumes a manually-downloaded CD4episcore export; CD4episcore itself works again as of 2026-08-26 (was confirmed broken 2026-07-04) but still isn't scriptable. |
 | `06_immunogenicity/outputs/cd4episcore_results_v3.csv` | Manually-downloaded CD4episcore Legacy-form export (2026-08-26) — real, complete data, unlike the stale/incomplete `cd4episcore_results.csv`/`_v2.csv` from the broken-CD4episcore period |
 | `06_immunogenicity/run_iedb.py` | Superseded — legacy whole-154 screen, targets dead `tools-cluster-interface.iedb.org` host |
 | `06_immunogenicity/run_consensus_epitopes.py` | Superseded — same dead host |
-
-**Caveat on `filter_tracker_ga.csv`**: it accumulated columns across tool
-iterations and now mixes stale and current data — `toxicity`/`tox_score` are
-ToxinPred2 (abandoned), `allergenicity`/`alg_score` are AlgPred2 (superseded
-by AllerCatPro2), `all_pass` reflects the old 3-filter scheme. **Nothing in
-`filter_lib.py` reads this file any more** (as of the `gate_tango()` switch
-to `03_aggregation/outputs/tango_results.csv` above) — it's kept only as a
-historical record. Treat `tox3_score`/`toxicity3`/`n_rank_iedb`/`best_rank_iedb`
-as the current columns if you're reading it for reference.
 
 ## Re-running
 

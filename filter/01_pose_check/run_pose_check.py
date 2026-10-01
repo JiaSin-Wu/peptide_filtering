@@ -13,7 +13,7 @@ Pass criteria (both must pass):
   d_nterm_tmd  <= 8 Å
   d_cterm_deep <= 8 Å
 
-Output: pose_check/results.csv
+Output: pose_check/outputs/results.csv
 
 Usage:
     conda run -n af3_ml python3 filter/pose_check/run_pose_check.py
@@ -35,7 +35,7 @@ import filter_lib as fl
 
 ROOT     = Path(__file__).resolve().parents[2]
 DOCK_OUT = ROOT / "structures"
-OUT_CSV  = HERE / "results.csv"
+OUT_CSV  = HERE / "outputs" / "results.csv"
 
 RECEPTORS = ["AMY1R", "AMY2R", "AMY3R", "CTR", "CGRP", "AM1R", "AM2R"]
 
@@ -133,6 +133,7 @@ def check_pose(seq_id: str, receptor: str) -> dict | None:
 
 
 def main():
+    OUT_CSV.parent.mkdir(parents=True, exist_ok=True)
     parser = argparse.ArgumentParser()
     parser.add_argument("--seq",       help="Comma-separated seq IDs")
     parser.add_argument("--seq-file",  help="Path to a file with one seq ID per line")

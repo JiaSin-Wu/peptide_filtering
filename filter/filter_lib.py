@@ -38,18 +38,9 @@ stage 02 and this column becomes redundant with final_pass again.
 peptide MSA this time -- 37aa query, jackhmmer against the full local
 databases, padded to the 38aa folding sequence -- not the empty-MSA
 placeholder used in an earlier single-receptor test), producing new
-structures at structures/GA_006/<receptor>/GA_006_<receptor>_model.cif,
-done for 07_md which needed real .cif files. 01_pose_check/results.csv's
-GA_006 rows were replaced with the fresh result: all 7 receptors now
-pose_pass=1, including AM1R, which the original (pre-existing,
-differently-sourced) structure had failed. This
-flips no pass/fail outcome here (amy_pose_pass was already 1), but it
-means offt_pass/final_pass for GA_006 are currently computed from a
-MISMATCHED pair: fresh pose_pass (new structures) + stale dG_AB_REU in
-rosetta_results.csv (never re-run against these new structures -- decided
-against for now, see session notes). Not a bug, just an open gap: if
-stage 02 is ever re-run for GA_006, re-run it against these same new
-structures, not the old ones.
+structures at structures/GA_006/<receptor>/GA_006_<receptor>_model.cif.
+The canonical on-target pose result is now the sequence-verified 21-row
+AMY1R/AMY2R/AMY3R table in 01_pose_check/outputs/results_from_md_af3.csv.
 """
 
 import csv
@@ -59,12 +50,12 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 
-POSE_CSV    = HERE / "01_pose_check" / "results.csv"
+POSE_CSV    = HERE / "01_pose_check" / "outputs" / "results_from_md_af3.csv"
 ROSETTA_CSV = HERE / "02_binding_energy" / "rosetta" / "rosetta_results.csv"
 TANGO_CSV   = HERE / "03_aggregation" / "outputs" / "tango_results.csv"
 TOX3_CSV    = HERE / "05_toxicity" / "outputs" / "toxinpred3_raw_ga.csv"
 ALLER_GLOB  = str(HERE / "04_allergenicity" / "outputs" / "AllerCatPro2_prediction_*.csv")
-SEQ_CSV     = HERE / "sequences_ga.csv"
+SEQ_CSV     = HERE / "inputs" / "sequences_ga.csv"
 IMM_CSV     = HERE / "06_immunogenicity" / "outputs" / "netmhciipan_sb_summary.csv"
 CD4_CSV     = HERE / "06_immunogenicity" / "outputs" / "cd4episcore_summary.csv"
 
@@ -197,13 +188,7 @@ def load_cd4episcore() -> dict:
 # ── gate functions (one boolean per candidate) ──────────────────────────────
 
 def load_tango() -> dict:
-    """03 aggregation, straight from run_tango.py's own output. Re-run
-    2026-08-26 for all 164 candidates with the fixed run_tango.py (see
-    filter.md) -- matched filter_tracker_ga.csv's `aggregation` column
-    exactly (164/164, 0 mismatches), so switching to this as the primary
-    source was a no-op for existing results, just no longer dependent on
-    the stale/mixed tracker file.
-    """
+    """03 aggregation, straight from run_tango.py's canonical output."""
     return {r["id"]: r["TANGO_pass"] == "PASS" for r in csv.DictReader(open(TANGO_CSV))}
 
 
@@ -266,7 +251,8 @@ GATES = {
 def report_amy_scores(ids: list[str], pose: dict | None = None, ros: dict | None = None) -> dict[str, bool]:
     """amy_pass: reported only, never gating -- AMY dG better than amylin's
     for all 3 AMY receptors. Docking/Rosetta affinity isn't a reliable
-    enough proxy for agonism yet (deferred to 07_md).
+    enough proxy for agonism; dynamic assessment is reported separately in
+    the thesis MD analysis.
     """
     pose = pose if pose is not None else load_pose()
     ros  = ros if ros is not None else load_rosetta()

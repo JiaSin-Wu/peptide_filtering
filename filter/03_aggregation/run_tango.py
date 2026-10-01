@@ -25,7 +25,7 @@ import filter_lib as fl
 # TANGO_BIN lets you point at a copy of the binary elsewhere (e.g. if
 # tools/ lives on a filesystem that doesn't preserve the executable bit).
 TANGO  = Path(os.environ["TANGO_BIN"]) if os.environ.get("TANGO_BIN") else HERE / "tools" / "tango_x86_64_release"
-INPUT  = HERE.parent / "sequences_ga.csv"
+INPUT  = HERE.parent / "inputs" / "sequences_ga.csv"
 OUTDIR = HERE / "outputs"
 OUTDIR.mkdir(exist_ok=True)
 

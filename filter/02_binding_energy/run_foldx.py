@@ -13,7 +13,7 @@ Chains:
   C = RAMP
   D = Gα (excluded from AnalyseComplex)
 
-Output: filter/02_binding_energy/foldx_results.csv
+Output: filter/02_binding_energy/outputs/foldx_results.csv
   Fields: id, receptor, dG_AB, dG_AC, dG_BC
     dG_AB = peptide ↔ receptor
     dG_AC = receptor ↔ RAMP
@@ -42,7 +42,7 @@ DOCK_OUT  = ROOT / "structures"
 FOLDX_DIR = Path(__file__).resolve().parent
 FOLDX_BIN = FOLDX_DIR / "foldx"
 ROTABASE  = FOLDX_DIR / "rotabase.txt"
-OUT_CSV   = FOLDX_DIR / "foldx_results.csv"
+OUT_CSV   = FOLDX_DIR / "outputs" / "foldx_results.csv"
 
 RECEPTORS = ["AMY1R", "AMY2R", "AMY3R", "CTR", "CGRP", "AM1R", "AM2R"]
 

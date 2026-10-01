@@ -26,7 +26,7 @@ HERE = Path(__file__).parent
 sys.path.insert(0, str(HERE.parent))
 import filter_lib as fl
 
-INPUT     = HERE.parent / "sequences_ga.csv"
+INPUT     = HERE.parent / "inputs" / "sequences_ga.csv"
 OUTDIR    = HERE / "outputs"
 OUTDIR.mkdir(exist_ok=True)
 
