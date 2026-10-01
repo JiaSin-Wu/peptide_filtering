@@ -1,0 +1,7 @@
+id,full_sequence,aggregation,allergenicity,toxicity,immunogenicity,amy123r_pose,final_status
+GA_005,KCNTATCATQRLAEFLVHHSYTPGATCWFTNVGSKTY,pass,pass,pass,pass,pass,retained
+GA_006,KCNTATCATQRLAEFLVHHSYNPGATCWFTNTGSKTY,pass,pass,pass,pass,pass,retained
+GA_025,KCNTATCATQRLAEFLVHHSYTPGAWCFTNVESNTY,pass,pass,pass,pass,pass,retained
+GA_078,KCNTATCATQRLAEFEVHHSYNNGAICWGTNTGSNDY,pass,pass,pass,pass,pass,retained
+GA_079,KCNTATCATQRLAEFLVVHSYNPQATCWFTNVGSKTY,pass,pass,pass,pass,pass,retained
+GA_090,KCNTATCATQRLAEFLVHHSYNPIMIPWFTNVGSNTY,pass,pass,pass,pass,pass,retained

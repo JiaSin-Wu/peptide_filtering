@@ -1,0 +1,8 @@
+stage,input_count,pass_count,fail_count,interpretation
+GA probability roster,3042,92,2950,Passed three on-target floors and four off-target ceilings
+TANGO aggregation,92,7,85,No aggregation-prone region under the prespecified rule
+AllerCatPro 2.0,7,7,0,No evidence of allergenicity
+ToxinPred3,7,7,0,Non-Toxin
+CD4 immunogenicity,7,6,1,GA_004 failed; minimum Combined Score 31.04
+AMY1R/AMY2R/AMY3R pose,7,7,0,All 21 sequence-verified structures passed
+Final panel,7,6,1,GA_004 excluded after CD4episcore failure
