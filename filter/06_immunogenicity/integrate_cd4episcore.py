@@ -1,17 +1,72 @@
 """
 integrate_cd4episcore.py
 
-Joins CD4episcore results with consensus MHC II binders to produce:
-  1. Per-sequence immunogenicity summary
-  2. Hotspot map (which positions are high-risk)
-  3. Final immunogenicity report comparing all 16 candidates to amylin
+Step 2 of the CD4 immunogenicity pipeline: takes the MHC-II binder peptides
+identified by run_netmhciipan_sb.py (rank < 10%, see its own docstring) and
+applies CD4episcore's Combined Score to judge which candidates carry a real
+immunogenicity risk.
 
-Inputs:
-  outputs/consensus_binders.csv   — all rank<10% binders (peptide → seq_id)
-  outputs/cd4episcore_results.csv — CD4episcore immunogenicity scores
+CD4episcore status (2026-08-26): confirmed WORKING via the Legacy web form
+(https://tools.iedb.org/CD4episcore/) -- contradicts the 2026-07-04 finding
+in filter.md that both the new API and the Legacy form were broken. Not
+retested via the new API in this session; still manual/web-only either way
+since neither this script nor run_netmhciipan_sb.py can submit to
+CD4episcore programmatically.
+
+Rule (Dhanda et al. 2018, Frontiers in Immunology, doi:10.3389/fimmu.2018.01369,
+Table 2): Combined Score is a percentile-style score like MHC percentile
+rank -- LOWER values mean HIGHER predicted immunogenicity risk, not the
+other way round. This inverts the naive reading of "Combined Score" as a
+plain 0-100 risk score, and inverts an earlier (wrong) analysis pass in
+this project that flagged peptides with Combined Score >= 43 as high-risk.
+Confirmed directly from the paper's methods: Imm_score = (1 - NN_output) x 100,
+where NN_output itself is 0-1 with high = more immunogenic -- inverting it
+puts Imm_score on the same "low = risky" scale as the HLA percentile-rank
+component it's averaged with.
+
+Threshold 43 is the paper's own recommended cutoff -- the one point in
+Table 2 where sensitivity and specificity are equal (both 59%), i.e. the
+balanced-accuracy choice, not an arbitrary pick:
+
+  Threshold | Sensitivity | Specificity
+  8         | 20%         | 91%
+  18        | 31%         | 85%
+  36        | 51%         | 65%
+  43        | 59%         | 59%   <- balanced, used here
+  66        | 75%         | 37%
+
+Decision rule (per-peptide, then rolled up per-candidate):
+  Combined Score < 43  -> that peptide is a predicted immunogenicity risk
+  Combined Score >= 43 -> acceptable
+
+  cd4_pass (per candidate) = 0 if ANY of its rank<10% peptides has
+  Combined Score < 43, else 1. A candidate with zero rank<10% peptides
+  (nothing for CD4episcore to flag) is trivially cd4_pass = 1.
+
+Status: reference/ranking only, NOT wired into final_pass -- CD4episcore
+coverage is manual and currently only exists for whichever candidates
+already had MHC-II binder peptides submitted to the web tool (see
+Input below), not for the full candidate roster. Promote to a hard gate
+only once coverage is decided to be complete enough.
+
+Input:
+  06_immunogenicity/outputs/netmhciipan_sb_raw.csv   -- to map peptide -> candidate id
+  06_immunogenicity/outputs/cd4episcore_results_v3.csv -- CD4episcore's own output
+    (manually downloaded from the Legacy web form; re-run this script after
+    adding more candidates' peptides and re-uploading, no code changes needed
+    as long as the new CD4episcore export also lands at that same path, or
+    edit CD4_CSV below to point at the new file)
 
 Output:
-  outputs/immunogenicity_report.csv
+  06_immunogenicity/outputs/cd4episcore_summary.csv -- id, n_peptides_scored,
+    min_combined_score, n_below_43, status, cd4_pass. `status` is "tested"
+    (every rank<10% peptide for that id was found in the CD4episcore export)
+    or "incomplete" (some weren't submitted yet); `cd4_pass` is only ever
+    0/1 when status is "tested" -- left blank for "incomplete" rather than
+    defaulting to a false "pass".
+
+Usage:
+  python3 filter/06_immunogenicity/integrate_cd4episcore.py
 """
 
 import csv
@@ -21,137 +76,86 @@ from pathlib import Path
 HERE   = Path(__file__).parent
 OUTDIR = HERE / "outputs"
 
-BINDERS_CSV    = OUTDIR / "consensus_binders.csv"
-CD4_CSV        = OUTDIR / "cd4episcore_results.csv"
-REPORT_CSV     = OUTDIR / "immunogenicity_report.csv"
+RAW_CSV    = OUTDIR / "netmhciipan_sb_raw.csv"
+CD4_CSV    = OUTDIR / "cd4episcore_results_v3.csv"
+SUMMARY_CSV = OUTDIR / "cd4episcore_summary.csv"
 
-FINAL_IDS = [
-    "GA_022","GA_051","GA_074","GA_085","GA_086","GA_087",
-    "GA_088","GA_102","GA_104","GA_108","GA_112","GA_117",
-    "GA_121","GA_122","GA_132","GA_146",
-]
-AMYLIN_ID = "amylin"
+WB_CUTOFF        = 10.0  # must match run_netmhciipan_sb.py's WB_CUTOFF
+RISK_THRESHOLD   = 43.0  # Dhanda et al. 2018 Table 2 -- balanced sens=spec=59%
 
 
-def load_cd4scores() -> dict[str, dict]:
-    """peptide → {immunogenicity_score, combined_score, median_rank}"""
-    d = {}
+def load_peptide_to_ids() -> dict[str, set[str]]:
+    peptide_to_ids: dict[str, set[str]] = defaultdict(set)
+    for r in csv.DictReader(open(RAW_CSV)):
+        pct = r.get("netmhciipan_ba_percentile")
+        if pct in (None, "", "-"):
+            continue
+        if float(pct) < WB_CUTOFF:
+            peptide_to_ids[r["peptide"]].add(r["seq_id"])
+    return peptide_to_ids
+
+
+def load_cd4_scores() -> dict[str, list[float]]:
+    """peptide -> list of Combined Score values (usually one, but a peptide
+    could in principle be scored more than once across separate submissions).
+    """
+    scores: dict[str, list[float]] = defaultdict(list)
     for r in csv.DictReader(open(CD4_CSV)):
-        pep = r["Peptide"].strip()
-        d[pep] = {
-            "imm_score":    float(r["Immunogenicity Score"]),
-            "combined":     float(r["Combined Score"]),
-            "median_rank":  float(r["Median Percentile Rank (7-allele)"]),
-        }
-    return d
-
-
-def load_binders() -> dict[str, list[dict]]:
-    """seq_id → list of binder rows"""
-    d = defaultdict(list)
-    for r in csv.DictReader(open(BINDERS_CSV)):
-        d[r["seq_id"]].append(r)
-    return d
-
-
-def _compress_ranges(positions: list[int]) -> str:
-    if not positions:
-        return "-"
-    positions = sorted(set(positions))
-    ranges, start, prev = [], positions[0], positions[0]
-    for p in positions[1:]:
-        if p == prev + 1:
-            prev = p
-        else:
-            ranges.append(f"{start}-{prev}" if start != prev else str(start))
-            start = prev = p
-    ranges.append(f"{start}-{prev}" if start != prev else str(start))
-    return ",".join(ranges)
-
-
-def analyze_sequence(seq_id: str, binders: list[dict], cd4: dict[str, dict]) -> dict:
-    cd4_hits = []
-    hotspot_positions = []
-
-    for b in binders:
-        pep = b["peptide"]
-        if pep in cd4:
-            combined = cd4[pep]["combined"]
-            cd4_hits.append({
-                "peptide":   pep,
-                "start":     int(b["start"]),
-                "end":       int(b["end"]),
-                "mhc_rank":  float(b["rank"]),
-                "imm_score": cd4[pep]["imm_score"],
-                "combined":  combined,
-            })
-            # High-risk: Combined Score >= 43 (Dhanda et al. 2018, Table 2; sensitivity=75%)
-            if combined >= 43:
-                for p in range(int(b["start"]), int(b["end"]) + 1):
-                    hotspot_positions.append(p)
-
-    n_cd4          = len(cd4_hits)
-    n_high         = sum(1 for h in cd4_hits if h["combined"] >= 43)
-    best_imm       = max((h["imm_score"] for h in cd4_hits), default=0.0)
-    best_combined  = max((h["combined"]  for h in cd4_hits), default=0.0)
-    hotspot_str    = _compress_ranges(hotspot_positions)
-
-    top_epitopes = sorted(cd4_hits, key=lambda x: -x["combined"])[:3]
-    top_str = " | ".join(
-        f"{h['peptide']}(combined={h['combined']:.1f},imm={h['imm_score']:.0f}%,pos{h['start']}-{h['end']})"
-        for h in top_epitopes
-    )
-
-    return {
-        "seq_id":        seq_id,
-        "n_mhc_binders": len(binders),
-        "n_cd4_hits":    n_cd4,
-        "n_high_risk":   n_high,        # imm_score >= 80
-        "best_imm_score": f"{best_imm:.1f}",
-        "best_combined": f"{best_combined:.2f}",
-        "hotspot_pos":   hotspot_str,
-        "top_epitopes":  top_str,
-    }
+        scores[r["Peptide"]].append(float(r["Combined Score"]))
+    return scores
 
 
 def main():
-    cd4    = load_cd4scores()
-    binders = load_binders()
+    peptide_to_ids = load_peptide_to_ids()
+    cd4_scores = load_cd4_scores()
 
-    print(f"CD4episcore peptides: {len(cd4)}")
-    print(f"Sequences with binders: {len(binders)}\n")
+    all_ids = set()
+    for ids in peptide_to_ids.values():
+        all_ids.update(ids)
 
-    order = [AMYLIN_ID] + FINAL_IDS
-    rows  = []
+    rows = []
+    for sid in sorted(all_ids):
+        peptides = [p for p, ids in peptide_to_ids.items() if sid in ids]
+        scored = [(p, s) for p in peptides for s in cd4_scores.get(p, [])]
+        missing = [p for p in peptides if p not in cd4_scores]
 
-    for seq_id in order:
-        b_list = binders.get(seq_id, [])
-        row = analyze_sequence(seq_id, b_list, cd4)
-        rows.append(row)
+        vals = [s for _, s in scored]
+        n_below = sum(1 for v in vals if v < RISK_THRESHOLD)
 
-    # Write report
-    fields = ["seq_id","n_mhc_binders","n_cd4_hits","n_high_risk",
-              "best_imm_score","best_combined","hotspot_pos","top_epitopes"]
-    with open(REPORT_CSV, "w", newline="") as f:
+        if missing:
+            # Some binder peptides were never submitted to CD4episcore --
+            # status is genuinely unknown, NOT a pass. Do not let an empty
+            # `vals` (zero real scores) silently compute n_below=0 -> pass.
+            print(f"  [WARN] {sid}: {len(missing)}/{len(peptides)} peptide(s) "
+                  f"not found in {CD4_CSV.name} -- not yet submitted to CD4episcore")
+            status = "incomplete"
+            cd4_pass = ""
+        else:
+            status = "tested"
+            cd4_pass = 1 if n_below == 0 else 0
+
+        rows.append({
+            "id": sid,
+            "n_peptides_scored": len(vals),
+            "min_combined_score": f"{min(vals):.2f}" if vals else "",
+            "n_below_43": n_below,
+            "status": status,
+            "cd4_pass": cd4_pass,
+        })
+
+    fields = ["id", "n_peptides_scored", "min_combined_score", "n_below_43", "status", "cd4_pass"]
+    with open(SUMMARY_CSV, "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=fields)
         w.writeheader()
         w.writerows(rows)
-    print(f"Report saved: {REPORT_CSV}\n")
 
-    # Print summary table
-    print(f"{'='*90}")
-    print(f"  {'ID':12s}  {'MHC':>5s}  {'CD4':>5s}  {'high(≥43)':>10s}  {'best_imm':>8s}  hotspots")
-    print(f"  {'-'*85}")
+    print(f"\n{'ID':10s}  {'n_scored':>8s}  {'min_score':>9s}  {'n<43':>5s}  {'status':>10s}  {'cd4_pass':>8s}")
+    print("-" * 62)
     for r in rows:
-        marker = " ← ref" if r["seq_id"] == AMYLIN_ID else ""
-        print(f"  {r['seq_id']:12s}  {r['n_mhc_binders']:5d}  {r['n_cd4_hits']:5d}"
-              f"  {r['n_high_risk']:10d}  {r['best_imm_score']:>8s}  {r['hotspot_pos']}{marker}")
-
-    print(f"\n  Top immunogenic epitopes per sequence:")
-    print(f"  {'-'*85}")
-    for r in rows:
-        if r["top_epitopes"]:
-            print(f"  {r['seq_id']:12s}  {r['top_epitopes']}")
+        print(f"{r['id']:10s}  {r['n_peptides_scored']:>8d}  "
+              f"{r['min_combined_score']:>9s}  {r['n_below_43']:>5d}  "
+              f"{r['status']:>10s}  {str(r['cd4_pass']):>8s}")
+    print(f"\nSummary saved: {SUMMARY_CSV}")
 
 
 if __name__ == "__main__":

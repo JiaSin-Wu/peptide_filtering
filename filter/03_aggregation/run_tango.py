@@ -1,17 +1,31 @@
 """
 run_tango.py
-批次對 196 條序列執行 TANGO，輸出彙整結果。
+批次執行 TANGO，輸出彙整結果。
 
 正確過濾標準（來自 TANGO 官方文件）：
   任何連續 5-6 個殘基的 Aggregation > 5% → 視為 APR（aggregation-prone region）→ FAIL
+
+子集合篩選（供 run_pipeline.py 漏斗使用）：
+  --seq GA_001,GA_002       只跑逗號分隔的候選 ID
+  --seq-file alive.txt      只跑檔案裡列出的候選 ID（一行一個）
+不加任一參數則跑 sequences_ga.csv 全部候選。
 """
 
-import csv, subprocess
+import argparse
+import csv
+import os
+import subprocess
+import sys
 from pathlib import Path
 
-HERE   = Path(__file__).parent
-TANGO  = HERE / "tools" / "tango_x86_64_release"
-INPUT  = HERE.parent / "sequences.csv"
+HERE = Path(__file__).parent
+sys.path.insert(0, str(HERE.parent))
+import filter_lib as fl
+
+# TANGO_BIN lets you point at a copy of the binary elsewhere (e.g. if
+# tools/ lives on a filesystem that doesn't preserve the executable bit).
+TANGO  = Path(os.environ["TANGO_BIN"]) if os.environ.get("TANGO_BIN") else HERE / "tools" / "tango_x86_64_release"
+INPUT  = HERE.parent / "sequences_ga.csv"
 OUTDIR = HERE / "outputs"
 OUTDIR.mkdir(exist_ok=True)
 
@@ -89,49 +103,16 @@ def find_aprs(scores: list,
     return aprs
 
 
-TRACKER = HERE.parent / "filter_tracker.csv"
-
-
-def update_tracker(tango_results: list):
-    """將 TANGO 結果（1=PASS, 0=FAIL）寫入 filter_tracker.csv 的 aggregation 欄。
-    若欄位不存在則新增；若 tracker 不存在則從 sequences.csv 建立。
-    """
-    # 建立 {id: pass} 對照表
-    tango_map = {r['id']: 1 if r['TANGO_pass'] == 'PASS' else 0
-                 for r in tango_results}
-
-    # 讀現有 tracker（若不存在則從 sequences.csv 初始化）
-    if TRACKER.exists():
-        rows = list(csv.DictReader(open(TRACKER)))
-        fields = list(rows[0].keys()) if rows else ['id', 'sequence']
-    else:
-        seq_rows = list(csv.DictReader(open(INPUT)))
-        rows = [{'id': r['id'], 'sequence': r['full_37aa']} for r in seq_rows]
-        fields = ['id', 'sequence']
-
-    # 確保 aggregation 欄存在
-    if 'aggregation' not in fields:
-        fields.append('aggregation')
-    for row in rows:
-        if 'aggregation' not in row:
-            row['aggregation'] = ''
-
-    # 寫入結果
-    for row in rows:
-        if row['id'] in tango_map:
-            row['aggregation'] = tango_map[row['id']]
-
-    with open(TRACKER, 'w', newline='') as f:
-        w = csv.DictWriter(f, fieldnames=fields)
-        w.writeheader()
-        w.writerows(rows)
-
-    n_pass = sum(tango_map.values())
-    print(f"filter_tracker.csv 已更新 → aggregation: {n_pass} PASS / {len(tango_map)} 總計")
-
-
 def main():
-    sequences = list(csv.DictReader(open(INPUT)))
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--seq", help="Comma-separated seq IDs")
+    ap.add_argument("--seq-file", help="Path to a file with one seq ID per line")
+    args = ap.parse_args()
+
+    all_sequences = list(csv.DictReader(open(INPUT)))
+    wanted_ids = set(fl.resolve_ids([r["id"] for r in all_sequences], args.seq, args.seq_file))
+    sequences = [r for r in all_sequences if r["id"] in wanted_ids]
+
     print(f"共 {len(sequences)} 條序列，開始跑 TANGO...")
     print(f"條件: pH={PH}, T={TEMP}K, IS={IO}M, CT={CT}, NT={NT}")
     print(f"過濾標準: 無連續 ≥{APR_MIN_LENGTH} 個殘基 Aggregation > {APR_THRESHOLD}%\n")
@@ -169,7 +150,7 @@ def main():
             'TANGO_pass': status,
         }
         results.append(result)
-        print(f"  [{i:3d}/196] {seq_id} | n_APR={len(aprs)} | {status}"
+        print(f"  [{i:3d}/{len(sequences)}] {seq_id} | n_APR={len(aprs)} | {status}"
               + (f" ← {apr_str}" if aprs else ""))
 
     # 儲存詳細結果
@@ -185,9 +166,6 @@ def main():
         w = csv.DictWriter(f, fieldnames=fields)
         w.writeheader()
         w.writerows(passed_rows)
-
-    # 自動更新 filter_tracker.csv
-    update_tracker(results)
 
     print(f"\n{'='*60}")
     print(f"結果: {n_pass}/{len(sequences)} 條通過")

@@ -1,0 +1,18 @@
+seq_id,n_mhc_binders,n_cd4_hits,n_high_risk,best_imm_score,best_combined,hotspot_pos,top_epitopes
+amylin,120,77,66,91.9,49.10,10-36,"QRLANFLVHSSNNFG(combined=49.1,imm=91%,pos10-24) | QRLANFLVHSSNNFG(combined=49.1,imm=91%,pos10-24) | QRLANFLVHSSNNFG(combined=49.1,imm=91%,pos10-24)"
+GA_022,135,37,37,90.8,49.53,9-36,"TQRLAWTSFRSSNNF(combined=49.5,imm=91%,pos9-23) | TQRLAWTSFRSSNNF(combined=49.5,imm=91%,pos9-23) | TQRLAWTSFRSSNNF(combined=49.5,imm=91%,pos9-23)"
+GA_051,113,33,33,97.7,48.90,11-28,"WFSFRSQQNFGAGLV(combined=48.9,imm=95%,pos14-28) | WFSFRSQQNFGAGLV(combined=48.9,imm=95%,pos14-28) | WFSFRSQQNFGAGLV(combined=48.9,imm=95%,pos14-28)"
+GA_074,68,0,0,0.0,0.00,-,
+GA_085,71,0,0,0.0,0.00,-,
+GA_086,71,0,0,0.0,0.00,-,
+GA_087,77,0,0,0.0,0.00,-,
+GA_088,77,0,0,0.0,0.00,-,
+GA_102,77,0,0,0.0,0.00,-,
+GA_104,77,0,0,0.0,0.00,-,
+GA_108,71,0,0,0.0,0.00,-,
+GA_112,119,65,23,87.5,48.80,11-31,"FRSFPNFGAGLVRMA(combined=48.8,imm=88%,pos17-31) | FRSFPNFGAGLVRMA(combined=48.8,imm=88%,pos17-31) | FRSFPNFGAGLVRMA(combined=48.8,imm=88%,pos17-31)"
+GA_117,71,0,0,0.0,0.00,-,
+GA_121,116,33,33,97.7,48.90,11-28,"WFSFRSQQNFGAGLV(combined=48.9,imm=95%,pos14-28) | WFSFRSQQNFGAGLV(combined=48.9,imm=95%,pos14-28) | WFSFRSQQNFGAGLV(combined=48.9,imm=95%,pos14-28)"
+GA_122,90,20,20,93.2,49.87,8-23,"ATQRLAWFPFRSNPN(combined=49.9,imm=93%,pos8-22) | ATQRLAWFPFRSNPN(combined=49.9,imm=93%,pos8-22) | ATQRLAWFPFRSNPN(combined=49.9,imm=93%,pos8-22)"
+GA_132,77,0,0,0.0,0.00,-,
+GA_146,71,0,0,0.0,0.00,-,

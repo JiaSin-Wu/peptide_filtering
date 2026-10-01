@@ -1,0 +1,7 @@
+Subject,ML Score,MERCI Score Pos,MERCI Score Neg,Hybrid Score,Prediction,PPV
+GA_159,0.445,0.0,-0.5,0.0,Non-Toxin,0.0
+GA_160,0.5,0.0,-0.5,0.0,Non-Toxin,0.0
+GA_161,0.44,0.0,-0.5,0.0,Non-Toxin,0.0
+GA_162,0.52,0.0,-0.5,0.02,Non-Toxin,0.0
+GA_163,0.475,0.0,-0.5,0.0,Non-Toxin,0.0
+GA_164,0.47,0.0,-0.5,0.0,Non-Toxin,0.0

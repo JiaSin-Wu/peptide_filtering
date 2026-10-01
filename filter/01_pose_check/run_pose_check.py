@@ -18,26 +18,38 @@ Output: pose_check/results.csv
 Usage:
     conda run -n af3_ml python3 filter/pose_check/run_pose_check.py
     conda run -n af3_ml python3 filter/pose_check/run_pose_check.py --seq GA_074
+    conda run -n af3_ml python3 filter/pose_check/run_pose_check.py --seq-file alive.txt --extra-id amylin
     conda run -n af3_ml python3 filter/pose_check/run_pose_check.py --receptor AMY1R,AMY2R
 """
 
 import argparse
 import csv
+import sys
 from pathlib import Path
 
 import numpy as np
 
+HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE.parent))
+import filter_lib as fl
+
 ROOT     = Path(__file__).resolve().parents[2]
 DOCK_OUT = ROOT / "structures"
-OUT_CSV  = Path(__file__).resolve().parent / "results.csv"
+OUT_CSV  = HERE / "results.csv"
 
 RECEPTORS = ["AMY1R", "AMY2R", "AMY3R", "CTR", "CGRP", "AM1R", "AM2R"]
 
 # ECD boundaries (GPCRdb, signal peptide excluded)
-# Chain A len 474 → CTR (calcr_human), len 461 → CLR (calrl_human)
-ECD_END    = {474: 131, 461: 129}  # last ECD residue (GPCRdb)
-TM1_START  = {474: 132, 461: 130}  # first TMD residue
-DEEP_START = 80                    # deep groove start; end = ECD_END (80-131 CTR / 80-129 CLR)
+# Chain A len 474 → CTR (calcr_human), len 461 → CLR (calrl_human).
+# 450/438 are the same two constructs with the N-terminal signal peptide
+# trimmed before folding (AlphaFold Server submission, run_001's GA_155-158
+# batch) — confirmed empirically the 450/438-residue chain A sequence is an
+# exact substring of the 474/461 reference at offset 24/23 respectively, so
+# every boundary below is just (reference boundary − that offset).
+ECD_END    = {474: 131, 461: 129, 450: 131 - 24, 438: 129 - 23}  # last ECD residue (GPCRdb)
+TM1_START  = {474: 132, 461: 130, 450: 132 - 24, 438: 130 - 23}  # first TMD residue
+DEEP_START = {474: 80,  461: 80,  450: 80 - 24,  438: 80 - 23}   # deep groove start; end = ECD_END
+TMD_END    = {474: 401, 461: 401, 450: 401 - 24, 438: 401 - 23}  # generous upper bound past all TM helices
 
 PASS_Å = 8.0
 
@@ -75,8 +87,15 @@ def check_pose(seq_id: str, receptor: str) -> dict | None:
         return None
 
     atoms = parse_ca(cif)
-    if not any(k[0] == "B" for k in atoms):
-        print(f"  [WARN] no chain B in {cif.name}", flush=True)
+    # Peptide chain id depends on how the complex was built: AlphaFold-Server
+    # submissions (older GA_155-158 batch) list the peptide as the 2nd entity
+    # -> chain "B". Our own pipeline's build_complex_json always assigns the
+    # peptide chain id "L" (ligand) regardless of receptor, appended after
+    # receptor/RAMP/Gα -- "B" there is RAMP (or absent for RAMP-less
+    # receptors like CTR), not the peptide. Prefer "L", fall back to "B".
+    pep_chain = "L" if any(k[0] == "L" for k in atoms) else "B"
+    if not any(k[0] == pep_chain for k in atoms):
+        print(f"  [WARN] no peptide chain (L or B) in {cif.name}", flush=True)
         return None
 
     chain_a_len = sum(1 for (c, _) in atoms if c == "A")
@@ -84,14 +103,16 @@ def check_pose(seq_id: str, receptor: str) -> dict | None:
         print(f"  [WARN] unexpected chain A length {chain_a_len} in {seq_id}/{receptor}", flush=True)
         return None
 
-    ecd_end   = ECD_END[chain_a_len]
-    tm1_start = TM1_START[chain_a_len]
+    ecd_end     = ECD_END[chain_a_len]
+    tm1_start   = TM1_START[chain_a_len]
+    deep_start  = DEEP_START[chain_a_len]
+    tmd_end     = TMD_END[chain_a_len]
 
-    pep_nterm = [atoms[("B", r)] for r in range(1,  14) if ("B", r) in atoms]
-    pep_cterm = [atoms[("B", r)] for r in range(26, 38) if ("B", r) in atoms]
+    pep_nterm = [atoms[(pep_chain, r)] for r in range(1,  14) if (pep_chain, r) in atoms]
+    pep_cterm = [atoms[(pep_chain, r)] for r in range(26, 38) if (pep_chain, r) in atoms]
 
-    rec_deep = [atoms[("A", r)] for r in range(DEEP_START, ecd_end + 1) if ("A", r) in atoms]
-    rec_tmd  = [atoms[("A", r)] for r in range(tm1_start,  401)         if ("A", r) in atoms]
+    rec_deep = [atoms[("A", r)] for r in range(deep_start, ecd_end + 1) if ("A", r) in atoms]
+    rec_tmd  = [atoms[("A", r)] for r in range(tm1_start,  tmd_end)    if ("A", r) in atoms]
 
     d_nterm = min_dist(pep_nterm, rec_tmd)
     d_deep  = min_dist(pep_cterm, rec_deep)
@@ -113,15 +134,16 @@ def check_pose(seq_id: str, receptor: str) -> dict | None:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--seq",      help="Comma-separated seq IDs")
-    parser.add_argument("--receptor", help="Comma-separated receptors")
+    parser.add_argument("--seq",       help="Comma-separated seq IDs")
+    parser.add_argument("--seq-file",  help="Path to a file with one seq ID per line")
+    parser.add_argument("--extra-id",  help="Comma-separated extra IDs to always include (e.g. amylin)")
+    parser.add_argument("--receptor",  help="Comma-separated receptors")
     args = parser.parse_args()
 
-    seq_ids   = sorted(d.name for d in DOCK_OUT.iterdir() if d.is_dir())
+    all_seq_ids = sorted(d.name for d in DOCK_OUT.iterdir() if d.is_dir())
+    seq_ids   = fl.resolve_ids(all_seq_ids, args.seq, args.seq_file, args.extra_id)
     receptors = RECEPTORS
 
-    if args.seq:
-        seq_ids = [s for s in seq_ids if s in {x.strip() for x in args.seq.split(",")}]
     if args.receptor:
         receptors = [r.strip() for r in args.receptor.split(",")]
 

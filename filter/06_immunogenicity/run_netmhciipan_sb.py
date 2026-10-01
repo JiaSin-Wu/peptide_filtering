@@ -1,9 +1,9 @@
 """
 run_netmhciipan_sb.py
 
-Immunogenicity screen for final candidates using NetMHCIIpan 4.1 BA
-(IEDB-recommended binding predictor, 2023.09) via the IEDB Next-Generation
-Tools API.
+Immunogenicity screen using NetMHCIIpan 4.1 BA (IEDB's currently-recommended
+MHC-II binding predictor, per IEDB's 2023.09 tool recommendation) via the
+IEDB Next-Generation Tools API.
 
 Replaces the old two-tool pipeline (run_iedb.py / run_consensus_epitopes.py
 + manual CD4episcore web upload), which depended on:
@@ -13,8 +13,26 @@ Replaces the old two-tool pipeline (run_iedb.py / run_consensus_epitopes.py
     request format
   - Legacy CD4episcore website -- form submission silently no-ops
 
-Method    : netmhciipan_ba (NetMHCIIpan 4.1 BA) via api-nextgen-tools.iedb.org
-            No SSH tunnel needed -- this host is directly reachable.
+Method    : netmhciipan_ba via api-nextgen-tools.iedb.org (no SSH tunnel
+            needed -- this host is directly reachable).
+
+            2026-08-26: briefly switched to IEDB's **Consensus** method
+            (median percentile rank across NN-align/SMM-align/Tepitope/
+            Comblib) on the strength of Paul et al. 2013 (J Immunol Res,
+            doi:10.1155/2013/467852), which found Consensus beats each of
+            those individual (now-superseded) methods for protein-drug
+            immunogenicity screening (AROC 0.89 vs 0.76-0.85). Reverted the
+            same day after reading Reynisson et al. 2020 (Nucleic Acids
+            Res 48:W449, doi:10.1093/nar/gkaa379) -- the actual NetMHCIIpan
+            4.0/4.1 paper: it's a single neural-network method, but trained
+            on 4.1M data points across 116 MHC-II molecules (binding
+            affinity + mass-spec eluted ligand data via NNAlign_MA), a full
+            generation newer than the four 2013-era constituent methods
+            Consensus averages together, and it's IEDB's current default
+            recommendation. Net effect: **use netmhciipan_ba, not
+            Consensus** -- "newer, better-trained single method" beat "old
+            methods averaged together" here, so don't re-derive Consensus
+            without a specific reason.
 Panel     : 7-allele DRB reference set
             HLA-DRB1*03:01, *07:01, *15:01, HLA-DRB3*01:01, *02:02,
             HLA-DRB4*01:01, HLA-DRB5*01:01
@@ -22,23 +40,37 @@ Window    : full 37aa sequence, 15-mer sliding window (standard for MHC-II,
             whose open-ended groove is conventionally scanned wider than the
             9aa binding core; NetMHCIIpan identifies the 9aa core internally)
 
-Metric    : n_SB = count of (peptide x allele) pairs with percentile rank < 2%
-            (Strong Binder -- stricter than the 10% Weak-Binder cutoff IEDB
-            uses as its general epitope-flagging recommendation). Chosen
-            because at the 10% cutoff, several final candidates turned out
-            to be indistinguishable from each other (identical binder sets,
-            since their sequence differences fall outside every 15-mer
-            binder window) and gave only a fuzzy "all candidates lower than
-            amylin" signal. At <2%, native amylin has 4 strong binders and
-            all 7 GA candidates have 0 -- a clean, decisive result.
+Metric    : n_WB = count of (peptide x allele) pairs with percentile rank
+            <= 10% (IEDB's general "binder" recommendation, Paul et al.
+            2013 above). Used comparatively -- rank candidates against each
+            other by n_WB, not against a fixed pass/fail cutoff (the paper
+            doesn't give one; see its methodology).
+
+            2026-08-26: dropped the earlier n_SB metric (percentile rank <
+            2%, "Strong Binder"). It was originally added because n_WB
+            alone made several candidates indistinguishable in an earlier,
+            smaller batch. But n_SB itself turned out to be uninformative:
+            with only ~161 (peptide x allele) combinations tested per
+            candidate, a rank<2% cutoff has a ~2% background hit rate by
+            construction, i.e. ~3 hits expected by chance alone -- so the
+            0-1 values every candidate actually showed were consistent
+            with pure noise, not a real signal, and gave no discriminating
+            power. n_WB doesn't have this problem at the same scale (it's
+            already showing real spread: 0 to 23 across current
+            candidates) and matches what the cited paper actually
+            recommends using.
 
 Output:
   outputs/netmhciipan_sb_raw.csv     -- full per-window x allele results
-  outputs/netmhciipan_sb_summary.csv -- n_SB per sequence, vs amylin baseline
+  outputs/netmhciipan_sb_summary.csv -- n_WB per sequence
 
 Usage:
   python3 filter/06_immunogenicity/run_netmhciipan_sb.py
   python3 filter/06_immunogenicity/run_netmhciipan_sb.py --seq GA_051,GA_074
+
+(File/output names keep the "_sb" suffix for continuity even though the SB
+metric itself is gone -- renaming would just churn every downstream
+reference for no functional benefit.)
 """
 
 import argparse
@@ -51,8 +83,7 @@ from pathlib import Path
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 HERE    = Path(__file__).parent
-ROOT    = HERE.parent.parent
-FILTER  = ROOT / "filter"
+FILTER  = HERE.parent
 SEQ_CSV = FILTER / "final_results.csv"
 OUTDIR  = HERE / "outputs"
 OUTDIR.mkdir(parents=True, exist_ok=True)
@@ -70,20 +101,25 @@ ALLELES = ",".join([
 ])
 METHOD = "netmhciipan_ba"     # NetMHCIIpan 4.1 BA -- IEDB-recommended (2023.09)
 PEPTIDE_LEN = 15
-SB_CUTOFF   = 2.0             # Strong Binder: percentile rank < 2%
-
-AMYLIN_ID  = "amylin"
-AMYLIN_SEQ = "KCNTATCATQRLANFLVHSSNNFGAILSSTNVGSNTY"
+WB_CUTOFF   = 10.0            # Weak Binder: percentile rank <= 10% (IEDB's general binder definition)
 
 POLL_INTERVAL_S = 8
 POLL_MAX_TRIES  = 30
 
 
 def load_targets(seq_filter: set[str] | None) -> list[tuple[str, str]]:
+    """Default (no --seq): whoever currently has final_pass=1. With --seq,
+    query exactly those IDs regardless of final_pass -- e.g. to check
+    immunogenicity for candidates that only made it through an earlier
+    stage (03/04/05) but haven't been through 01/02 yet.
+    """
     rows = list(csv.DictReader(open(SEQ_CSV)))
-    finals = [r for r in rows if r.get("final_pass") == "1"]
-    targets = [(AMYLIN_ID, AMYLIN_SEQ)]
-    for r in finals:
+    if seq_filter:
+        pool = rows
+    else:
+        pool = [r for r in rows if r.get("final_pass") == "1"]
+    targets = []
+    for r in pool:
         if seq_filter and r["id"] not in seq_filter:
             continue
         targets.append((r["id"], r["full_37aa"]))
@@ -147,7 +183,7 @@ def main():
     targets = load_targets(seq_filter)
     print(f"Sequences: {len(targets)} ({', '.join(t[0] for t in targets)})")
     print(f"Method: {METHOD} | Alleles: 7-allele DRB panel | Window: {PEPTIDE_LEN}-mer")
-    print(f"SB cutoff: percentile rank < {SB_CUTOFF}%\n")
+    print(f"WB cutoff: percentile rank <= {WB_CUTOFF}%\n")
 
     fasta_text = build_fasta(targets)
     result_id = submit(fasta_text)
@@ -168,32 +204,28 @@ def main():
             w.writerow([sid] + r)
     print(f"\nRaw results saved: {RAW_CSV} ({len(rows)} rows)")
 
-    n_sb = {sid: 0 for sid, _ in targets}
     n_wb = {sid: 0 for sid, _ in targets}
     for r in rows:
         sid = seq_names[r[idx["sequence_number"]]]
         pct = r[idx["netmhciipan_ba_percentile"]]
-        if pct is None:
+        if pct is None or pct == "-":
             continue
         pct = float(pct)
-        if pct < SB_CUTOFF:
-            n_sb[sid] += 1
-        if pct <= 10.0:
+        if pct <= WB_CUTOFF:
             n_wb[sid] += 1
 
-    amylin_sb = n_sb[AMYLIN_ID]
     with open(SUMMARY_CSV, "w", newline="") as f:
         w = csv.writer(f)
-        w.writerow(["seq_id", "n_sb_lt2pct", "n_wb_lt10pct", "sb_vs_amylin"])
+        w.writerow(["seq_id", "n_wb_lt10pct"])
         for sid, _ in targets:
-            w.writerow([sid, n_sb[sid], n_wb[sid], n_sb[sid] - amylin_sb])
+            w.writerow([sid, n_wb[sid]])
     print(f"Summary saved: {SUMMARY_CSV}\n")
 
-    print(f"{'ID':10s}  {'n_SB(<2%)':>10s}  {'n_WB(<10%)':>11s}")
-    print(f"{'-'*35}")
-    for sid, _ in targets:
-        marker = " <- ref" if sid == AMYLIN_ID else ""
-        print(f"{sid:10s}  {n_sb[sid]:10d}  {n_wb[sid]:11d}{marker}")
+    ranked = sorted(targets, key=lambda t: n_wb[t[0]])
+    print(f"{'ID':10s}  {'n_WB(<10%)':>11s}   (ranked ascending -- comparative, not pass/fail)")
+    print(f"{'-'*45}")
+    for sid, _ in ranked:
+        print(f"{sid:10s}  {n_wb[sid]:11d}")
 
 
 if __name__ == "__main__":

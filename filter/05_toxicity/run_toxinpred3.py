@@ -8,18 +8,27 @@ Threshold : ML_Score < 0.38 → Non-Toxin → PASS  (ToxinPred3 default)
             Native amylin baseline = 0.35 (passes at default threshold)
 Input     : full 37aa sequence
 Run with  : conda run -n raghava_tools python3 run_toxinpred3.py
+            conda run -n raghava_tools python3 run_toxinpred3.py --seq GA_001,GA_002
+            conda run -n raghava_tools python3 run_toxinpred3.py --seq-file alive.txt
+
+Subset filtering (for run_pipeline.py's funnel): --seq / --seq-file narrow
+the batch down; neither given runs every candidate in sequences_ga.csv.
 """
 
+import argparse
 import csv
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
-HERE      = Path(__file__).parent
-INPUT     = HERE.parent / "sequences.csv"
+HERE = Path(__file__).parent
+sys.path.insert(0, str(HERE.parent))
+import filter_lib as fl
+
+INPUT     = HERE.parent / "sequences_ga.csv"
 OUTDIR    = HERE / "outputs"
 OUTDIR.mkdir(exist_ok=True)
-TRACKER   = HERE.parent / "filter_tracker.csv"
 
 TOOL_DIR  = HERE / "tools" / "toxinpred3"
 THRESHOLD = 0.38
@@ -32,9 +41,9 @@ def run_toxinpred3_batch(sequences: list) -> list:
             fa.write(f">{row['id']}\n{row['full_37aa']}\n")
         fa_path = fa.name
 
-    out_path = str(OUTDIR / "toxinpred3_raw.csv")
+    out_path = str(OUTDIR / "toxinpred3_raw_ga.csv")
     cmd = [
-        "python3", str(TOOL_DIR / "toxinpred3.py"),  # absolute path fixes nf_path for Model 2
+        sys.executable, str(TOOL_DIR / "toxinpred3.py"),  # absolute path fixes nf_path for Model 2
         "-i", fa_path,
         "-o", out_path,
         "-t", str(THRESHOLD),
@@ -48,29 +57,16 @@ def run_toxinpred3_batch(sequences: list) -> list:
     return list(csv.DictReader(open(out_path)))
 
 
-def update_tracker(results: list):
-    result_map = {r["id"]: 1 if r["toxin_pass"] == "PASS" else 0 for r in results}
-
-    rows   = list(csv.DictReader(open(TRACKER)))
-    fields = list(rows[0].keys()) if rows else ["id", "sequence"]
-    if "toxicity" not in fields:
-        fields.append("toxicity")
-    for row in rows:
-        row.setdefault("toxicity", "")
-        if row["id"] in result_map:
-            row["toxicity"] = result_map[row["id"]]
-
-    with open(TRACKER, "w", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=fields)
-        w.writeheader()
-        w.writerows(rows)
-
-    n_pass = sum(result_map.values())
-    print(f"filter_tracker.csv updated -> toxicity: {n_pass} PASS / {len(result_map)} total")
-
-
 def main():
-    sequences = list(csv.DictReader(open(INPUT)))
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--seq", help="Comma-separated seq IDs")
+    ap.add_argument("--seq-file", help="Path to a file with one seq ID per line")
+    args = ap.parse_args()
+
+    all_sequences = list(csv.DictReader(open(INPUT)))
+    wanted_ids = set(fl.resolve_ids([r["id"] for r in all_sequences], args.seq, args.seq_file))
+    sequences = [r for r in all_sequences if r["id"] in wanted_ids]
+
     print(f"{len(sequences)} sequences")
     print(f"Tool: ToxinPred3 Model 1 (AAC+DPC Extra Trees) | Threshold: {THRESHOLD}")
     print(f"Native amylin baseline: 0.35 (Non-Toxin)\n")
@@ -108,8 +104,6 @@ def main():
         w = csv.DictWriter(f, fieldnames=RESULT_FIELDS)
         w.writeheader()
         w.writerows(passed)
-
-    update_tracker(results)
 
     print(f"\n{'='*60}")
     print(f"Result: {len(passed)}/{len(results)} PASS")

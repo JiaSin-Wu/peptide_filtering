@@ -49,18 +49,47 @@ RECEPTORS = ["AMY1R", "AMY2R", "AMY3R", "CTR", "CGRP", "AM1R", "AM2R"]
 FIELDS = ["id", "receptor", "dG_AB", "dG_AC", "dG_BC"]
 
 
-class ChainABCSelect(Select):
-    """Keep only chains A, B, C (exclude Gα = chain D)."""
+class KeepChainsSelect(Select):
+    """Keep only the given chain ids (drop Gα and anything else)."""
+    def __init__(self, keep: set[str]):
+        self.keep = keep
+
     def accept_chain(self, chain):
-        return chain.id in ("A", "B", "C")
+        return chain.id in self.keep
 
 
-def cif_to_pdb(cif_path: Path, pdb_path: Path):
+def cif_to_pdb(cif_path: Path, pdb_path: Path) -> tuple[str, str | None]:
+    """
+    Convert, keeping receptor + RAMP (if present) + peptide, dropping Gα.
+
+    No relabeling: two chain-lettering conventions exist depending on how
+    the complex was built, and both are used as-is. AlphaFold-Server
+    submissions list the peptide 2nd -> chain "B" (no RAMP carried through
+    that path). Our own pipeline's build_complex_json always assigns the
+    peptide chain id "L" (ligand), appended after receptor(A)/RAMP(B, if
+    present)/Gα(G) -- so "B" there is RAMP, not the peptide.
+
+    Returns (peptide_chain_id, ramp_chain_id_or_None) so the caller can ask
+    FoldX for only the chains that actually exist and map the resulting
+    energies back to the right semantic column regardless of which letter
+    the peptide happened to land on.
+    """
     parser = MMCIFParser(QUIET=True)
     struct = parser.get_structure("s", str(cif_path))
+    chain_ids = {c.id for c in struct[0]}
+
+    if "L" in chain_ids:
+        pep_chain_id = "L"
+        ramp_chain_id = "B" if "B" in chain_ids else None
+    else:
+        pep_chain_id = "B"
+        ramp_chain_id = "C" if "C" in chain_ids else None
+
+    keep = {"A", pep_chain_id} | ({ramp_chain_id} if ramp_chain_id else set())
     io = PDBIO()
     io.set_structure(struct)
-    io.save(str(pdb_path), ChainABCSelect())
+    io.save(str(pdb_path), KeepChainsSelect(keep))
+    return pep_chain_id, ramp_chain_id
 
 
 def run_foldx_cmd(cmd: list[str], workdir: Path) -> bool:
@@ -105,10 +134,11 @@ def process_one(args: tuple) -> dict | None:
 
         # 1. CIF → PDB
         try:
-            cif_to_pdb(cif, pdb_path)
+            pep_chain_id, ramp_chain_id = cif_to_pdb(cif, pdb_path)
         except Exception as e:
             print(f"  [CIF→PDB ERROR] {seq_id}/{receptor}: {e}", flush=True)
             return None
+        chains_present = ["A", pep_chain_id] + ([ramp_chain_id] if ramp_chain_id else [])
 
         # 2. RepairPDB
         ok, err = run_foldx_cmd(
@@ -123,11 +153,12 @@ def process_one(args: tuple) -> dict | None:
             print(f"  [WARN] RepairPDB output missing: {seq_id}/{receptor}", flush=True)
             return None
 
-        # 3. AnalyseComplex
+        # 3. AnalyseComplex -- only ask for chains that actually exist in
+        # this structure (e.g. CTR has no RAMP, so just A + peptide).
         ok, err = run_foldx_cmd(
             ["--command=AnalyseComplex",
              f"--pdb={pdb_name}_Repair.pdb",
-             "--analyseComplexChains=A,B,C",
+             f"--analyseComplexChains={','.join(chains_present)}",
              f"--output-dir={workdir}"], workdir)
         if not ok:
             print(f"  [AnalyseComplex ERROR] {seq_id}/{receptor}: {err}", flush=True)
@@ -144,10 +175,17 @@ def process_one(args: tuple) -> dict | None:
             print(f"  [PARSE ERROR] {seq_id}/{receptor}", flush=True)
             return None
 
+    # Map FoldX's actual chain-letter pairs back to fixed semantic columns
+    # (dG_AB = receptor-peptide, dG_AC = receptor-RAMP, dG_BC = peptide-RAMP)
+    # regardless of which letter the peptide/RAMP happened to land on for
+    # this structure's build convention.
+    key_ab = "".join(sorted(["A", pep_chain_id]))
+    key_ac = "".join(sorted(["A", ramp_chain_id])) if ramp_chain_id else None
+    key_bc = "".join(sorted([pep_chain_id, ramp_chain_id])) if ramp_chain_id else None
     row = {"id": seq_id, "receptor": receptor,
-           "dG_AB": energies.get("dG_AB", "NA"),
-           "dG_AC": energies.get("dG_AC", "NA"),
-           "dG_BC": energies.get("dG_BC", "NA")}
+           "dG_AB": energies.get(f"dG_{key_ab}", "NA"),
+           "dG_AC": energies.get(f"dG_{key_ac}", "NA") if key_ac else "NA",
+           "dG_BC": energies.get(f"dG_{key_bc}", "NA") if key_bc else "NA"}
     print(f"  {seq_id:12s} {receptor:6s}  "
           f"dG_AB={row['dG_AB']:>8s}  dG_AC={row['dG_AC']:>8s}  dG_BC={row['dG_BC']:>8s}",
           flush=True)

@@ -1,0 +1,8 @@
+Protein,Sequence Length,Gluten allergens (# of Q-repeats),# of 3x6-mer overlaps,Best known allergen hit name,Species,Number of known allergen hits,Best hit UniProt/NCBI,Best hit SUPFAM,Best hit Pfam,Best hit InterPro,Best hit IgE prevalence,Best hit Allergen info,% identity linear 80 aa window,% identity 3D epitope,Result,Comment,% identity to closest human hit,% identity to closest low-allergen hit
+GA_005,37,0,0,No significant hit (E-value threshold 0.001),-,0,-,-,-,-,-,-,-,-,no evidence,no hits,-,-
+GA_006,37,0,0,No significant hit (E-value threshold 0.001),-,0,-,-,-,-,-,-,-,-,no evidence,no hits,-,-
+GA_025,36,0,0,No significant hit (E-value threshold 0.001),-,0,-,-,-,-,-,-,-,-,no evidence,no hits,-,-
+GA_078,37,0,0,No significant hit (E-value threshold 0.001),-,0,-,-,-,-,-,-,-,-,no evidence,no hits,-,-
+GA_079,37,0,0,No significant hit (E-value threshold 0.001),-,0,-,-,-,-,-,-,-,-,no evidence,no hits,-,-
+GA_090,37,0,0,No significant hit (E-value threshold 0.001),-,0,-,-,-,-,-,-,-,-,no evidence,no hits,-,-
+GA_004,37,0,0,No significant hit (E-value threshold 0.001),-,0,-,-,-,-,-,-,-,-,no evidence,no hits,-,-
