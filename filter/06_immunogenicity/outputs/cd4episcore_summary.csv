@@ -1,4 +1,5 @@
 id,n_peptides_scored,min_combined_score,n_below_43,status,cd4_pass
+GA_004,8,31.04,7,failed,0
 GA_005,8,56.69,0,tested,1
 GA_006,8,58.43,0,tested,1
 GA_025,6,56.69,0,tested,1
