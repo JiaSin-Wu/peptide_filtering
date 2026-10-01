@@ -64,7 +64,7 @@ def main():
     print()
 
     out_rows = fl.build_report_rows(sequences)
-    fl.write_report(out_rows, fl.HERE / "final_results.csv")
+    fl.write_report(out_rows, fl.HERE / "outputs" / "final_results.csv")
 
     n = len(out_rows)
     n_amy_pose = sum(1 for r in out_rows if r["amy_pose_pass"])

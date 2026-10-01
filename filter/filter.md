@@ -83,10 +83,10 @@ checks:
   ├─ 01 Pose check      (geometry, AMY only)  → gate_amy_pose   → amy_pose_pass
   └─ 02 Binding energy  (Rosetta ΔG_AB)       → gate_offtarget  → offt_pass
              │  (each stage only processes survivors of the previous one)
-     run_pipeline.py writes pipeline_state/<order>/final_results.csv
-     (also mirrored to final_results.csv at the repo root, via filter_lib.build_report_rows)
+     run_pipeline.py writes pipeline_state/<order>/final_results.csv;
+     run_final_filter.py writes outputs/final_results.csv
              │
-       final_results.csv  (92 rows, one per GA sequence, + eliminated_at_stage)
+       outputs/final_results.csv  (92 rows, one per GA sequence)
 ```
 
 `01`'s gate only eliminates on the 3 AMY receptors — a candidate that fails
@@ -439,7 +439,6 @@ additionally writes it under `pipeline_state/<order>/` and adds an
 | `inputs/sequences_ga.csv` | 92 GA candidate sequences (`GA_001`–`GA_092`, ranked by descending GA fitness) + per-receptor GA fitness scores (AMY1R–AM2R). |
 | `metadata/id_rename_map_20260826.csv` | old_id → new_id mapping from the 2026-08-26 rename (92 rows) |
 | `outputs/` | Consolidated human-readable results: funnel summary, six-candidate final panel, full 92-row table, and the AMY123R pose result link. |
-| `final_results.csv` | Compatibility symlink to `outputs/final_results.csv`. |
 | `filter_lib.py` | **Shared library** — id-list I/O, raw-output loaders, and the five `gate_*` functions that define `final_pass`. Both scripts below import it instead of duplicating the logic. |
 | `run_pipeline.py` | **Current** — order-configurable sequential funnel (`--order 03,04,05,01` default, `02` excluded by default — see [Final integration](#final-integration--run_final_filterpy)). Runs 01/02/03/05 via `conda run -n <env>`, pauses for the manual 04 (AllerCatPro2) step, writes `pipeline_state/<order>/{alive_after_*.txt,audit.csv,final_results.csv}`. `--replay-only` applies the gates to existing output files with no external tool calls (used for the order-equivalence regression check). |
 | `run_final_filter.py` | One-shot integration script → `final_results.csv`, assumes 01-05 already computed for everyone. Also the regression baseline `run_pipeline.py` is checked against. |
