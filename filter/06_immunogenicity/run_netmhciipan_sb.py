@@ -5,8 +5,7 @@ Immunogenicity screen using NetMHCIIpan 4.1 BA (IEDB's currently-recommended
 MHC-II binding predictor, per IEDB's 2023.09 tool recommendation) via the
 IEDB Next-Generation Tools API.
 
-Replaces the old two-tool pipeline (run_iedb.py / run_consensus_epitopes.py
-+ manual CD4episcore web upload), which depended on:
+Replaces the removed legacy IEDB/consensus workflow, which depended on:
   - tools-cluster-interface.iedb.org (legacy tools_api) -- dead, unreachable
   - CD4episcore immunogenicity predictor (new API) -- server-side bug,
     reproducibly fails with "Completion flag file missing" regardless of

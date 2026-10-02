@@ -17,9 +17,7 @@ gate_tox3=05) and applying them one at a time as a funnel is mathematically
 equivalent to the original single-shot AND, *regardless of what order the
 five stages run in* -- as long as 01 keeps scoring all 7 receptors (not
 just the 3 AMY ones) so gate_offtarget still has off-target pose data to
-read whenever 02 runs. See filter.md's Verification section for the
---replay-only regression check that confirms this across several --order
-permutations.
+read whenever 02 runs. See README.md for the current workflow and caveats.
 
 2026-08-28 -- stage 02 (binding_energy / Rosetta dG_AB) is being deferred:
 it is NOT run for the current batch. `final_pass` still requires

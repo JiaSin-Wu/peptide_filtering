@@ -1,9 +1,0 @@
-seq_id,n_windows_scored,n_high_risk,best_combined,best_imm_score,hotspot_pos,top_epitopes
-amylin,6,2,84.99,98.5,1-30,"KCNTATCATQRLANF(combined=85.0,imm=98%,pos1-15) | LVHSSNNFGAILSST(combined=68.1,imm=91%,pos16-30) | TCATQRLANFLVHSS(combined=55.6,imm=88%,pos6-20)"
-GA_051,6,3,85.10,98.8,1-30,"KCNTATCATQRLAWF(combined=85.1,imm=99%,pos1-15) | TCATQRLAWFSFRSQ(combined=71.6,imm=95%,pos6-20) | SFRSQQNFGAGLVRS(combined=71.0,imm=98%,pos16-30)"
-GA_074,6,3,85.10,98.8,1-30,"KCNTATCATQRLAWF(combined=85.1,imm=99%,pos1-15) | SFRSQQNWGNILGRS(combined=75.0,imm=97%,pos16-30) | TCATQRLAWFSFRSQ(combined=71.6,imm=95%,pos6-20)"
-GA_085,6,3,85.10,98.8,1-30,"KCNTATCATQRLAWF(combined=85.1,imm=99%,pos1-15) | TCATQRLAWFSFRSQ(combined=71.6,imm=95%,pos6-20) | SFRSQQNFGNIWGRS(combined=66.9,imm=94%,pos16-30)"
-GA_086,6,3,85.10,98.8,1-30,"KCNTATCATQRLAWF(combined=85.1,imm=99%,pos1-15) | TCATQRLAWFSFRSQ(combined=71.6,imm=95%,pos6-20) | SFRSQQNFGNIWGRS(combined=66.9,imm=94%,pos16-30)"
-GA_087,6,3,85.10,98.8,1-30,"KCNTATCATQRLAWF(combined=85.1,imm=99%,pos1-15) | TCATQRLAWFSFRSQ(combined=71.6,imm=95%,pos6-20) | SFRSQQNFGNILGRS(combined=68.5,imm=98%,pos16-30)"
-GA_088,6,3,85.10,98.8,1-30,"KCNTATCATQRLAWF(combined=85.1,imm=99%,pos1-15) | TCATQRLAWFSFRSQ(combined=71.6,imm=95%,pos6-20) | SFRSQQNFGNILGRS(combined=68.5,imm=98%,pos16-30)"
-GA_104,6,3,85.10,98.8,1-30,"KCNTATCATQRLAWF(combined=85.1,imm=99%,pos1-15) | TCATQRLAWFSFRSQ(combined=71.6,imm=95%,pos6-20) | SFRSQQNFGNILGRS(combined=68.5,imm=98%,pos16-30)"

@@ -8,7 +8,7 @@ immunogenicity risk.
 
 CD4episcore status (2026-08-26): confirmed WORKING via the Legacy web form
 (https://tools.iedb.org/CD4episcore/) -- contradicts the 2026-07-04 finding
-in filter.md that both the new API and the Legacy form were broken. Not
+in the former project notes that both the new API and the Legacy form were broken. Not
 retested via the new API in this session; still manual/web-only either way
 since neither this script nor run_netmhciipan_sb.py can submit to
 CD4episcore programmatically.

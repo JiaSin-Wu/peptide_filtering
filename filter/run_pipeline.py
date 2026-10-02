@@ -6,16 +6,16 @@ sequential funnel -- only survivors of stage N are handed to stage N+1 --
 in whatever order --order specifies. Order is just a comma-separated
 string; change it and rerun, no code changes needed.
 
-Default order: 03,04,05,01,02 -- run the three sequence-only checks
+Default order: 03,04,05,01 -- run the three sequence-only checks
 (aggregation/allergenicity/toxicity: cheap, no docked structures needed)
-first and eliminate weak candidates, then only spend Rosetta time
-(1-2 min/job x however many receptors) on the two structural checks
-(pose_check, binding_energy) for whoever's left.
+first and eliminate weak candidates, then run the on-target pose check for
+whoever is left. Stage 02 (Rosetta binding energy) is deferred and must be
+requested explicitly.
 
 Gate-split correctness: see filter_lib.py's module docstring. Because
 boolean AND is order-independent, any --order permutation must converge
 on the same final surviving set as run_final_filter.py's one-shot AND --
-verified with --replay-only (see filter.md's Verification section).
+verified with --replay-only; see README.md for the current caveats.
 
 04 (AllerCatPro2) has no API -- it's a manual web tool. When this stage
 hits candidates not yet covered by an existing
@@ -165,8 +165,8 @@ def run_manual_stage_04(alive: list[str], run_dir: Path) -> list[str]:
 
 def replay_stage(stage: str, alive: list[str], run_dir: Path) -> list[str]:
     """--replay-only: apply the gate to whatever's already on disk, no
-    subprocess calls at all -- used to verify order-independence (see
-    filter.md's Verification section) without touching any external tool.
+    subprocess calls at all -- used to verify order-independence without
+    touching any external tool.
     """
     gate_result = fl.GATES[stage](alive)
     survivors, eliminated = fl.apply_gate(alive, gate_result)
@@ -181,7 +181,7 @@ def main():
     ap.add_argument("--order", default=",".join(STAGE_ORDER_DEFAULT),
                      help="Comma-separated stage codes, e.g. 03,04,05,01,02")
     ap.add_argument("--resume", action="store_true")
-    ap.add_argument("--seq-file", help="Initial candidate subset (default: all of sequences_ga.csv)")
+    ap.add_argument("--seq-file", help="Initial candidate subset (default: all of inputs/sequences_ga.csv)")
     ap.add_argument("--replay-only", action="store_true",
                      help="Apply gates to existing output files only, no subprocess calls")
     ap.add_argument("--workers", type=int, default=8)
