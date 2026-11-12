@@ -15,8 +15,8 @@ File-based protocol (no networking needed):
 Start with (see start_af3_daemon.sh):
   docker run -d --name af3_daemon \
     --gpus all \
-    -v GA/input:/root/inputs \
-    -v GA/outputs:/root/outputs \
+    -v GA/af3/infer_input:/root/inputs \
+    -v GA/af3/infer_output:/root/outputs \
     -v /opt/model_parameter:/root/af3_params \
     -v af3_daemon.py:/app/alphafold/af3_daemon.py \
     -e PYTHONPATH=/app/alphafold/src \

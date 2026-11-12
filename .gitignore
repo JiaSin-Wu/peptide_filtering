@@ -27,10 +27,7 @@ data/train_af3/
 structures/
 
 # AF3 daemon I/O (mounted into af3_daemon container, see start_af3_daemon.sh)
-GA/input/
-GA/outputs/
-GA/msa/
-GA/msa_outputs/
+GA/af3/
 
 # Vendored third-party tool repos - re-fetch separately instead of tracking
 filter/*/tools/algpred2/
