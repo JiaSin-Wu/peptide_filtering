@@ -33,8 +33,6 @@ start_af3_daemon.sh    launches that daemon
 run_docking.py         AF3 docking driver, candidates x receptors  (see caveat)
 data/af3_ref/          per-receptor AF3 template JSONs, one dir per receptor
 filter/                the filtering pipeline  -> filter/README.md
-Sequence_1             FASTA of the six retained candidates + GA_004
-seq.aac, seq.dpc       AAC / DPC composition tables  (provenance unknown)
 structures/            AF3 docking output, gitignored (100+ GB)
 ```
 
@@ -268,13 +266,10 @@ no `requirements.txt`, no `pyproject.toml`. The only build file is
 Things that are genuinely not known, rather than merely undocumented:
 
 1. The exact 3,042 → 92 thresholds, and what wrote `filter/inputs/sequences_ga.csv`.
-2. The provenance of `seq.aac`, `seq.dpc` and `Sequence_1` — their contents are
-   clear (AAC and DPC composition tables; a FASTA of seven candidates) but no
-   script in the repository reads or writes them.
-3. Which `structures/` layout the pose check actually consumed.
+2. Which `structures/` layout the pose check actually consumed.
    `run_docking.py` writes `<seq_id>/<receptor>/`, but the tree on lab_193 is
    organised by receptor.
-4. Why `filter/06_immunogenicity/self_similarity/` holds an MMseqs2 human
+3. Why `filter/06_immunogenicity/self_similarity/` holds an MMseqs2 human
    proteome database that nothing in the pipeline reads.
 
 ## History
@@ -286,7 +281,8 @@ own.
 | Commit | What it removed |
 |---|---|
 | `127f1e0` | the `GA/` tree, most of `model/`, the `*_ctail100` AF3 templates — recording the state of the `lab_193` working copy |
-| this one | the rest of `model/`, superseded by the GA repo's `grader/inference/` |
+| `230de3d` | the rest of `model/`, superseded by the GA repo's `grader/inference/` |
+| this one | `seq.aac`, `seq.dpc`, `Sequence_1` — scratch files left behind by a manual ToxinPred3 run, which `toxinpred3.py` normally deletes itself |
 
 Nothing was lost. Everything above is reachable from history:
 
