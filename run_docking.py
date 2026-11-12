@@ -9,9 +9,9 @@ Same logic as GA worker.py:
 Outputs saved to: structures/<seq_id>/<receptor>/
 
 Usage:
-    conda run -n af3_ml python3 docking/run_docking.py
-    conda run -n af3_ml python3 docking/run_docking.py --dry-run
-    conda run -n af3_ml python3 docking/run_docking.py --skip-done
+    conda run -n af3_ml python3 run_docking.py
+    conda run -n af3_ml python3 run_docking.py --dry-run
+    conda run -n af3_ml python3 run_docking.py --skip-done
 """
 
 import argparse
@@ -81,7 +81,7 @@ def run_af3(seq_id: str, seq_24: str, msa: str, receptors: list[str], seed: int 
 
 
 def save_outputs(seq_id: str, job_names: list[str]):
-    """Copy AF3 outputs from ~/outputs/ to docking/outputs/<seq_id>/."""
+    """Copy AF3 outputs from ~/outputs/ to structures/<seq_id>/."""
     dest_base = DOCK_OUT / seq_id
     dest_base.mkdir(parents=True, exist_ok=True)
     for job_name in job_names:

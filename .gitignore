@@ -2,26 +2,10 @@ __pycache__/
 *.pyc
 *.pyo
 *.log
-*.png
-*.html
 .env
-*.egg-info/
-dist/
-build/
 
-# Large data/output directories (not tracked in git)
-filter/**/af3_inputs/
-filter/**/af3_outputs/
-filter/**/outputs/
-filter/**/*_results.csv
-filter/**/msa_cache.json
-filter/filter_tracker.csv
-filter/sequences.csv
-filter/**/SEQ_*.txt
-model/data/
-data/graphs/
-data/labels/
-data/train_af3/
+# Per-run pipeline state (checkpoints and a per-order copy of final_results.csv)
+filter/pipeline_state/
 
 # Structure prediction outputs (100+GB, never track)
 structures/
@@ -41,4 +25,7 @@ filter/**/self_similarity/tmp*/
 
 # Licensed third-party binaries (e.g. FoldX) - not redistributable
 filter/**/foldx
-docking/
+
+# NOTE: stage results under filter/*/outputs/ are deliberately tracked -- they are
+# the evidence behind the funnel. They used to be ignored here and force-added,
+# which meant a new stage result was silently skipped by `git add -A`.

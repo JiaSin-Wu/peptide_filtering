@@ -83,7 +83,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 HERE    = Path(__file__).parent
 FILTER  = HERE.parent
-SEQ_CSV = FILTER / "final_results.csv"
+SEQ_CSV = FILTER / "outputs" / "final_results.csv"
 OUTDIR  = HERE / "outputs"
 OUTDIR.mkdir(parents=True, exist_ok=True)
 

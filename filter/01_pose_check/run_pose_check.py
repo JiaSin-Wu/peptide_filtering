@@ -13,13 +13,14 @@ Pass criteria (both must pass):
   d_nterm_tmd  <= 8 Å
   d_cterm_deep <= 8 Å
 
-Output: pose_check/outputs/results.csv
+Output: 01_pose_check/outputs/results_from_md_af3.csv
+        (the file filter_lib.POSE_CSV reads -- rerunning overwrites it)
 
 Usage:
-    conda run -n af3_ml python3 filter/pose_check/run_pose_check.py
-    conda run -n af3_ml python3 filter/pose_check/run_pose_check.py --seq GA_074
-    conda run -n af3_ml python3 filter/pose_check/run_pose_check.py --seq-file alive.txt --extra-id amylin
-    conda run -n af3_ml python3 filter/pose_check/run_pose_check.py --receptor AMY1R,AMY2R
+    conda run -n af3_ml python3 filter/01_pose_check/run_pose_check.py
+    conda run -n af3_ml python3 filter/01_pose_check/run_pose_check.py --seq GA_074
+    conda run -n af3_ml python3 filter/01_pose_check/run_pose_check.py --seq-file alive.txt --extra-id amylin
+    conda run -n af3_ml python3 filter/01_pose_check/run_pose_check.py --receptor AMY1R,AMY2R
 """
 
 import argparse
@@ -35,7 +36,7 @@ import filter_lib as fl
 
 ROOT     = Path(__file__).resolve().parents[2]
 DOCK_OUT = ROOT / "structures"
-OUT_CSV  = HERE / "outputs" / "results.csv"
+OUT_CSV  = HERE / "outputs" / "results_from_md_af3.csv"  # == filter_lib.POSE_CSV
 
 RECEPTORS = ["AMY1R", "AMY2R", "AMY3R", "CTR", "CGRP", "AM1R", "AM2R"]
 

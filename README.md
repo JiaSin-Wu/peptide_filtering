@@ -59,7 +59,13 @@ MEM_FRACTION=0.45 bash start_af3_daemon.sh    # share a busy GPU
 
 Runs `jiasin/alphafold3:latest` with `--gpus all`, AF3 weights at
 `/opt/model_parameter`. Docked structures land in `structures/` (gitignored,
-100+ GB). `data/af3_ref/` holds one AF3 template per receptor.
+100+ GB).
+
+`data/af3_ref/` holds one AF3 template per receptor (219 MB). Nothing here reads
+them — the sole consumer is the GA repo's oracle — but they are tracked here
+because that repo gitignores its own byte-identical copy, which makes this
+history the only version-controlled one. Before dropping them, commit them
+there.
 
 > `run_docking.py` **does not run against the current HEAD.** It imports a `GA/`
 > directory that no longer exists here, reads `filter/ga_final_ranked.csv` which

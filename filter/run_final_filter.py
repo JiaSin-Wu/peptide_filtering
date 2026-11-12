@@ -90,7 +90,7 @@ def main():
     if finals_ne:
         print(f"Final candidates (final_pass_no_energy=1): {', '.join(finals_ne)}")
 
-    print(f"\nOutput: {fl.HERE / 'final_results.csv'}")
+    print(f"\nOutput: {fl.HERE / 'outputs' / 'final_results.csv'}")
 
 
 if __name__ == "__main__":
