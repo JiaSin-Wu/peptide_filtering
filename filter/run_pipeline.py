@@ -13,8 +13,8 @@ whoever is left.
 
 Gate-split correctness: see filter_lib.py's module docstring. Because
 boolean AND is order-independent, any --order permutation must converge
-on the same final surviving set as run_final_filter.py's one-shot AND --
-verified with --replay-only; see README.md for the current caveats.
+on the same final surviving set -- verified with --replay-only; see README.md
+for the current caveats.
 
 04 (AllerCatPro2) has no API -- it's a manual web tool. When this stage
 hits candidates not yet covered by an existing
@@ -28,6 +28,7 @@ Usage:
     python3 run_pipeline.py --order 01,03,04,05
     python3 run_pipeline.py --resume
     python3 run_pipeline.py --replay-only --order 04,03,01,05
+    python3 run_pipeline.py --replay-only --update-outputs   # regenerate outputs/final_results.csv
 """
 
 import argparse
@@ -164,6 +165,9 @@ def main():
     ap.add_argument("--seq-file", help="Initial candidate subset (default: all of inputs/sequences_ga.csv)")
     ap.add_argument("--replay-only", action="store_true",
                      help="Apply gates to existing output files only, no subprocess calls")
+    ap.add_argument("--update-outputs", action="store_true",
+                     help="Also (over)write outputs/final_results.csv, the 92-row table "
+                          "built from the stage results already on disk")
     args = ap.parse_args()
 
     order = [s.strip() for s in args.order.split(",")]
@@ -200,6 +204,11 @@ def main():
     rows = fl.build_report_rows(sequences, eliminated_at=eliminated_at)
     out_csv = run_dir / "final_results.csv"
     fl.write_report(rows, out_csv)
+
+    if args.update_outputs:
+        canonical = fl.HERE / "outputs" / "final_results.csv"
+        fl.write_report(fl.build_report_rows(sequences), canonical)
+        print(f"Updated {canonical}")
 
     n_final = sum(r["final_pass"] for r in rows)
     print(f"\n{'='*50}")

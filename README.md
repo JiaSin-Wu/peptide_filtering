@@ -39,7 +39,7 @@ Three things that will bite you:
 - **`final_pass` does not include CD4episcore** — the gate that actually excluded
   `GA_004`. It is `amy_pose_pass AND safety_pass` and has 7 rows.
 - **The canonical six in `filter/outputs/final_candidates.csv` cannot be
-  reproduced by re-running `run_final_filter.py`**, for that reason.
+  reproduced from the pipeline's `final_pass`**, for that reason.
 - Stage numbering skips 02: an off-target Rosetta energy stage existed, was never
   run for this panel, and was removed (it is in git history).
 

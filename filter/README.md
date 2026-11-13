@@ -52,7 +52,6 @@ filter/
 ├── README.md
 ├── filter_lib.py
 ├── run_pipeline.py
-├── run_final_filter.py
 ├── inputs/                 # canonical 92-candidate roster
 ├── metadata/               # ID provenance
 ├── outputs/                # consolidated results; start here
@@ -70,7 +69,7 @@ Some ignored legacy tool installations (for example AlgPred2 or ToxinPred2)
 may remain on a particular machine as environment assets. They are not read
 by the current pipeline and are not canonical inputs or results.
 
-## The two runners are different
+## The pipeline runner
 
 ### `run_pipeline.py`
 
@@ -82,16 +81,11 @@ not orchestrated by this runner. Stage numbering skips 02: an off-target
 Rosetta energy stage was removed (it is in git history).
 
 Each run writes checkpoints and a report under
-`pipeline_state/<stage-order>/`; it does not write the canonical
-`outputs/final_results.csv`.
-
-### `run_final_filter.py`
-
-This is a one-shot integrator. It does not call prediction tools; it reads
-the results already present on disk and writes
-`outputs/final_results.csv`. Its legacy rollup remains
-`final_pass = amy_pose_pass AND safety_pass`, where `safety_pass` contains
-TANGO, ToxinPred3, and AllerCatPro but not CD4episcore. Therefore rerunning it
+`pipeline_state/<stage-order>/`. It writes the canonical
+`outputs/final_results.csv` only with `--update-outputs` (the table is built from
+the stage results already on disk; `--replay-only` calls no prediction tools).
+The rollup is `final_pass = amy_pose_pass AND safety_pass`, where `safety_pass`
+contains TANGO, ToxinPred3, and AllerCatPro but not CD4episcore. Therefore it
 does not replace `outputs/final_candidates.csv` as the canonical final-panel
 decision.
 
@@ -118,12 +112,12 @@ python3 06_immunogenicity/run_netmhciipan_sb.py
 # Integrate a manually downloaded CD4episcore export
 python3 06_immunogenicity/integrate_cd4episcore.py
 
-# Rebuild the legacy 92-row integrated table from existing stage results
-python3 run_final_filter.py
+# Rebuild the 92-row integrated table from existing stage results
+python3 run_pipeline.py --replay-only --update-outputs
 ```
 
-Do not rerun `run_final_filter.py` expecting it to make the six-candidate
-decision until CD4episcore is intentionally added to the rollup logic.
+Do not rely on `final_pass` for the six-candidate decision until CD4episcore is
+intentionally added to the rollup logic.
 
 ## Manual stages
 

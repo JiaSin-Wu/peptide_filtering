@@ -2,8 +2,7 @@
 filter_lib.py
 
 Shared library for the 3_Filter pipeline: candidate-id-list I/O, the raw
-per-stage output loaders, and the per-stage gate functions. Used by both
-run_final_filter.py (one-shot AND merge over every candidate at once) and
+per-stage output loaders, and the per-stage gate functions. Used by
 run_pipeline.py (a real sequential funnel, in whatever --order is given).
 
 Gate-split rationale: the final rollup is
@@ -205,13 +204,13 @@ GATES = {
 }
 
 
-# ── final report assembly (shared by run_final_filter.py and run_pipeline.py) ──
+# ── final report assembly (used by run_pipeline.py) ──
 
 def build_report_rows(sequences: list[dict], eliminated_at: dict[str, str] | None = None) -> list[dict]:
     """Assemble the final_results.csv wide table for `sequences` (rows from
     sequences_ga.csv). `eliminated_at` (id -> stage name, "" if survived) is
-    optional -- run_final_filter.py's one-shot AND doesn't have one,
-    run_pipeline.py's funnel audit trail supplies it.
+    optional -- run_pipeline.py's funnel audit trail supplies it; the
+    canonical outputs/final_results.csv is written without it.
     """
     pose    = load_pose()
     tango   = load_tango()
