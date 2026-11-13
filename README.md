@@ -67,8 +67,15 @@ Default scope is the six candidates (GA_005, 006, 025, 078, 079, 090) against CT
 - The peptide MSA is searched once with AF3's own data pipeline (jackhmmer, CPU only)
   and cached per peptide, shared by all receptors. Folding runs with the data
   pipeline off.
-- **Setup: create `.env` first.** The scripts need a Docker image with AlphaFold 3, the
-  weights and the genetic databases, and there are no built-in paths. Copy the template
+- **Prerequisite: get AlphaFold 3 and its Docker image yourself.** This repo does not
+  ship AF3. Follow the official installation guide at
+  <https://github.com/google-deepmind/alphafold3> to (1) build the Docker image from
+  its `docker/Dockerfile` (it must contain `/app/alphafold/run_alphafold.py`), (2)
+  obtain the model weights (`af3.bin`, which Google gives out on request) and (3)
+  download the genetic databases. You also need Docker with the NVIDIA container
+  toolkit; the peptide MSA step uses only the CPU, folding needs the GPU.
+- **Setup: create `.env` first.** The scripts need that Docker image, the weights and
+  the genetic databases, and there are no built-in paths. Copy the template
   and edit it for your machine (`.env` is gitignored, so it is never committed):
 
   ```bash

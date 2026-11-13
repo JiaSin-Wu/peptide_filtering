@@ -108,15 +108,16 @@ def compute_msas(peptides: dict[str, str], no_msa: bool = False) -> dict[str, st
         cmd = [
             "docker", "run", "--rm",                      # no --gpus: search only
             "--user", f"{os.getuid()}:{os.getgid()}",
-            "-v", f"{in_dir}:/root/inputs:ro",
-            "-v", f"{MSA_WORK}:/root/outputs",
-            "-v", f"{DB_DIR}:/root/public_databases:ro",
+            "-v", f"{in_dir}:/af3/inputs:ro",
+            "-v", f"{MSA_WORK}:/af3/outputs",
+            "-v", f"{DB_DIR}:/af3/databases:ro",
             "-e", "PYTHONPATH=/app/alphafold/src",
+            "-e", "HOME=/tmp",   # container runs as the host user; /root is not accessible
             IMAGE,
             "python3", "/app/alphafold/run_alphafold.py",
-            "--input_dir=/root/inputs",
-            "--output_dir=/root/outputs",
-            "--db_dir=/root/public_databases",
+            "--input_dir=/af3/inputs",
+            "--output_dir=/af3/outputs",
+            "--db_dir=/af3/databases",
             "--run_data_pipeline=true",
             "--run_inference=false",
             f"--jackhmmer_n_cpu={MSA_CPUS}",

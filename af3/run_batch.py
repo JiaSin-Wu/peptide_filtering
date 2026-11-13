@@ -50,16 +50,17 @@ def run_alphafold() -> None:
     cmd = [
         "docker", "run", "--rm", "--gpus", "all",
         "--user", f"{os.getuid()}:{os.getgid()}",
-        "-v", f"{INF_DIR}:/root/inputs:ro",
-        "-v", f"{OUT_DIR}:/root/outputs",
-        "-v", f"{MODEL_DIR}:/root/af3_params:ro",
+        "-v", f"{INF_DIR}:/af3/inputs:ro",
+        "-v", f"{OUT_DIR}:/af3/outputs",
+        "-v", f"{MODEL_DIR}:/af3/models:ro",
         "-e", "PYTHONPATH=/app/alphafold/src",
+        "-e", "HOME=/tmp",   # container runs as the host user; /root is not accessible
         "-e", f"XLA_CLIENT_MEM_FRACTION={MEM_FRACTION}",
         IMAGE,
         "python3", "/app/alphafold/run_alphafold.py",
-        "--input_dir=/root/inputs",
-        "--output_dir=/root/outputs",
-        "--model_dir=/root/af3_params",
+        "--input_dir=/af3/inputs",
+        "--output_dir=/af3/outputs",
+        "--model_dir=/af3/models",
         "--run_data_pipeline=false",     # MSA/templates are already in the JSON
         "--num_diffusion_samples=1",     # AF3 default is 5
         "--num_recycles=10",
