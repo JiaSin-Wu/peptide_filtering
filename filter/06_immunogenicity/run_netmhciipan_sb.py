@@ -110,7 +110,7 @@ def load_targets(seq_filter: set[str] | None) -> list[tuple[str, str]]:
     """Default (no --seq): whoever currently has final_pass=1. With --seq,
     query exactly those IDs regardless of final_pass -- e.g. to check
     immunogenicity for candidates that only made it through an earlier
-    stage (03/04/05) but haven't been through 01/02 yet.
+    stage (03/04/05) but haven't been through 01 yet.
     """
     rows = list(csv.DictReader(open(SEQ_CSV)))
     if seq_filter:

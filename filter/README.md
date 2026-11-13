@@ -23,9 +23,9 @@ The consolidated, human-readable results are in `outputs/`:
 | `outputs/pose_results_amy123r.csv` | Link to the 21-row, sequence-verified AMY1R/2R/3R pose result. |
 
 Use `outputs/final_candidates.csv` when the question is "which candidates
-remain?" The historical `final_pass` and `final_pass_no_energy` columns in
-`outputs/final_results.csv` do not include CD4episcore as a hard gate and
-must not be used alone to recover the current six-candidate panel.
+remain?" The `final_pass` column in `outputs/final_results.csv` does not include
+CD4episcore as a hard gate and must not be used alone to recover the current
+six-candidate panel (it has 7 rows; CD4episcore removes `GA_004`).
 
 ## Current funnel
 
@@ -40,8 +40,8 @@ must not be used alone to recover the current six-candidate panel.
 | Final panel | 6 / 7 | `outputs/final_candidates.csv` |
 
 The pose check is a geometry sanity check, not evidence of affinity or
-agonism. Off-target Rosetta energy screening is deferred and is not part of
-the current six-candidate panel. Consequently, the retained candidates are
+agonism. No off-target energy screening was done for the current six-candidate
+panel. Consequently, the retained candidates are
 computationally prioritized candidates, not experimentally confirmed
 selective agonists.
 
@@ -57,7 +57,6 @@ filter/
 ├── metadata/               # ID provenance
 ├── outputs/                # consolidated results; start here
 ├── 01_pose_check/          # pose script and verified results
-├── 02_binding_energy/      # deferred Rosetta workflow
 ├── 03_aggregation/         # TANGO
 ├── 04_allergenicity/       # AllerCatPro manual input/output
 ├── 05_toxicity/            # ToxinPred3
@@ -78,9 +77,9 @@ by the current pipeline and are not canonical inputs or results.
 This is the stage orchestrator. It executes a sequential funnel so that only
 survivors enter the next stage. Its actual default order is `03,04,05,01`:
 TANGO → AllerCatPro → ToxinPred3 → pose. AllerCatPro is manual, so the runner
-can pause and emit FASTA files for web submission. Stage 02 (Rosetta) must be
-requested explicitly and is currently deferred. Stage 06 (immunogenicity) is
-not orchestrated by this runner.
+can pause and emit FASTA files for web submission. Stage 06 (immunogenicity) is
+not orchestrated by this runner. Stage numbering skips 02: an off-target
+Rosetta energy stage was removed (it is in git history).
 
 Each run writes checkpoints and a report under
 `pipeline_state/<stage-order>/`; it does not write the canonical
@@ -91,7 +90,7 @@ Each run writes checkpoints and a report under
 This is a one-shot integrator. It does not call prediction tools; it reads
 the results already present on disk and writes
 `outputs/final_results.csv`. Its legacy rollup remains
-`amy_pose_pass AND offt_pass AND safety_pass`, where `safety_pass` contains
+`final_pass = amy_pose_pass AND safety_pass`, where `safety_pass` contains
 TANGO, ToxinPred3, and AllerCatPro but not CD4episcore. Therefore rerunning it
 does not replace `outputs/final_candidates.csv` as the canonical final-panel
 decision.

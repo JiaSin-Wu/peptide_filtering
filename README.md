@@ -26,7 +26,6 @@ python3 run_pipeline.py --replay-only   # re-apply gates to existing results
 | Stage | Gate | Automated? |
 |---|---|---|
 | `01_pose_check` | AMY1R/2R/3R pose geometry | yes (`af3_ml` env) |
-| `02_binding_energy` | Rosetta off-target ΔG | **deferred — not in the default order** |
 | `03_aggregation` | TANGO, no APR | yes |
 | `04_allergenicity` | AllerCatPro 2.0 | **no — manual web upload** |
 | `05_toxicity` | ToxinPred3 | yes (`raghava_tools` env) |
@@ -37,11 +36,12 @@ Three things that will bite you:
 - **Stage 04 pauses the pipeline.** It writes FASTA batches, exits with code 75,
   and waits for you to upload them to <https://allercatpro.bioinf.nl/> and drop
   the result CSV into `04_allergenicity/outputs/`.
-- **Read the pass set from `final_pass_no_energy`, not `final_pass`.** The latter
-  still requires the deferred stage 02 and so passes only `GA_006`. Neither
-  column includes CD4episcore — the gate that actually excluded `GA_004`.
+- **`final_pass` does not include CD4episcore** — the gate that actually excluded
+  `GA_004`. It is `amy_pose_pass AND safety_pass` and has 7 rows.
 - **The canonical six in `filter/outputs/final_candidates.csv` cannot be
   reproduced by re-running `run_final_filter.py`**, for that reason.
+- Stage numbering skips 02: an off-target Rosetta energy stage existed, was never
+  run for this panel, and was removed (it is in git history).
 
 ToxinPred3 must be installed separately at `filter/05_toxicity/tools/toxinpred3/`
 (gitignored). The TANGO binary is tracked, so stage 03 needs no extra install.
@@ -89,9 +89,9 @@ No dependency manifest exists — no `environment.yml`, no `requirements.txt`.
 What the code needs, as evidenced by the code:
 
 - Python ≥ 3.10 (lab_193 runs 3.12.3; nothing is pinned)
-- conda envs by name: `af3_ml` (stage 01), `pyrosetta` (stage 02),
-  `raghava_tools` (stage 05); stage 03 needs none
-- numpy, biopython, pyrosetta
+- conda envs by name: `af3_ml` (stage 01), `raghava_tools` (stage 05);
+  stage 03 needs none
+- numpy, biopython
 - Docker and an NVIDIA GPU for AF3 (the peptide MSA step is CPU only)
 
 ## Open questions

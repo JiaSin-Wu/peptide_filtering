@@ -1,7 +1,7 @@
 """
 run_pipeline.py
 
-Orchestrator for the 3_Filter pipeline: runs stages 01-05 as a real
+Orchestrator for the 3_Filter pipeline: runs stages 01 and 03-05 as a real
 sequential funnel -- only survivors of stage N are handed to stage N+1 --
 in whatever order --order specifies. Order is just a comma-separated
 string; change it and rerun, no code changes needed.
@@ -9,8 +9,7 @@ string; change it and rerun, no code changes needed.
 Default order: 03,04,05,01 -- run the three sequence-only checks
 (aggregation/allergenicity/toxicity: cheap, no docked structures needed)
 first and eliminate weak candidates, then run the on-target pose check for
-whoever is left. Stage 02 (Rosetta binding energy) is deferred and must be
-requested explicitly.
+whoever is left.
 
 Gate-split correctness: see filter_lib.py's module docstring. Because
 boolean AND is order-independent, any --order permutation must converge
@@ -26,9 +25,9 @@ already-completed stages are skipped via their checkpoint files.
 
 Usage:
     python3 run_pipeline.py
-    python3 run_pipeline.py --order 01,02,03,04,05
+    python3 run_pipeline.py --order 01,03,04,05
     python3 run_pipeline.py --resume
-    python3 run_pipeline.py --replay-only --order 04,03,01,05,02
+    python3 run_pipeline.py --replay-only --order 04,03,01,05
 """
 
 import argparse
@@ -45,34 +44,17 @@ STATE_ROOT = HERE / "pipeline_state"
 EXIT_PAUSED = 75
 
 STAGE_ORDER_DEFAULT = ["03", "04", "05", "01"]
-# 02 (Rosetta binding energy) is left out of the default order 2026-08-26 --
-# it's the slowest stage (1-2 min/job) and needs `structures/` + a working
-# pyrosetta env, neither reliably available; run it explicitly with
-# --order 03,04,05,01,02 (or any other order including "02") when you have
-# both. NOTE: `final_pass` in filter_lib.build_report_rows() still requires
-# offt_pass (02's gate) regardless of --order -- leaving 02 out here only
-# skips *orchestrating* that stage's computation, it doesn't relax the
-# final_pass formula. If 02 hasn't been run for a candidate, it's
-# conservatively offt_pass=0 in the final report.
-#
-# 2026-08-28: 02 is being deferred for the current batch. While it is,
-# read the pass set off the report's `final_pass_no_energy` column
-# (amy_pose_pass AND safety_pass) rather than `final_pass` -- see
-# filter_lib.py's module docstring.
-
 # 04 has no conda env -- it's a manual web-upload step, not a local script.
-STAGE_CONDA_ENV = {"01": "af3_ml", "02": "pyrosetta", "03": None, "05": "raghava_tools"}
+STAGE_CONDA_ENV = {"01": "af3_ml", "03": None, "05": "raghava_tools"}
 
 STAGE_SCRIPT = {
     "01": HERE / "01_pose_check" / "run_pose_check.py",
-    "02": HERE / "02_binding_energy" / "rosetta" / "run_rosetta_iface_parallel.py",
     "03": HERE / "03_aggregation" / "run_tango.py",
     "05": HERE / "05_toxicity" / "run_toxinpred3.py",
 }
 
 STAGE_NAME = {
     "01": "01_pose_check",
-    "02": "02_binding_energy",
     "03": "03_aggregation",
     "04": "04_allergenicity",
     "05": "05_toxicity",
@@ -83,13 +65,11 @@ def all_candidate_ids() -> list[str]:
     return [r["id"] for r in csv.DictReader(open(fl.SEQ_CSV))]
 
 
-def build_cmd(stage: str, seqfile: Path, workers: int) -> list[str]:
+def build_cmd(stage: str, seqfile: Path) -> list[str]:
     script = STAGE_SCRIPT[stage]
     tail = ["--seq-file", str(seqfile)]
-    if stage in ("01", "02"):
+    if stage == "01":
         tail += ["--extra-id", fl.AMYLIN_ID]
-    if stage == "02":
-        tail += ["--workers", str(workers)]
     env = STAGE_CONDA_ENV[stage]
     prefix = ["conda", "run", "-n", env] if env else []
     return prefix + ["python3", str(script)] + tail
@@ -120,12 +100,12 @@ def write_fasta_batches(ids: list[str], seq_lookup: dict, outdir: Path, prefix: 
     return paths
 
 
-def run_auto_stage(stage: str, alive: list[str], run_dir: Path, workers: int) -> list[str]:
+def run_auto_stage(stage: str, alive: list[str], run_dir: Path) -> list[str]:
     seqfile = run_dir / f"input_{stage}.txt"
-    ids_for_run = sorted(set(alive) | ({fl.AMYLIN_ID} if stage in ("01", "02") else set()))
+    ids_for_run = sorted(set(alive) | ({fl.AMYLIN_ID} if stage == "01" else set()))
     fl.write_ids(seqfile, ids_for_run)
 
-    cmd = build_cmd(stage, seqfile, workers)
+    cmd = build_cmd(stage, seqfile)
     print(f"\n[{stage}] running: {' '.join(cmd)}", flush=True)
     subprocess.run(cmd, check=True, cwd=str(HERE))
 
@@ -179,12 +159,11 @@ def replay_stage(stage: str, alive: list[str], run_dir: Path) -> list[str]:
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--order", default=",".join(STAGE_ORDER_DEFAULT),
-                     help="Comma-separated stage codes, e.g. 03,04,05,01,02")
+                     help="Comma-separated stage codes, e.g. 03,04,05,01")
     ap.add_argument("--resume", action="store_true")
     ap.add_argument("--seq-file", help="Initial candidate subset (default: all of inputs/sequences_ga.csv)")
     ap.add_argument("--replay-only", action="store_true",
                      help="Apply gates to existing output files only, no subprocess calls")
-    ap.add_argument("--workers", type=int, default=8)
     args = ap.parse_args()
 
     order = [s.strip() for s in args.order.split(",")]
@@ -209,7 +188,7 @@ def main():
         elif stage == "04":
             alive = run_manual_stage_04(alive, run_dir)
         else:
-            alive = run_auto_stage(stage, alive, run_dir, args.workers)
+            alive = run_auto_stage(stage, alive, run_dir)
 
     sequences = list(csv.DictReader(open(fl.SEQ_CSV)))
     eliminated_at = {}

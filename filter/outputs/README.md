@@ -15,6 +15,5 @@ toxicity, and all three AMY-receptor pose checks, but failed CD4episcore
 because 7 of 8 returned windows scored below 43 (minimum 31.04). Its existing
 MD results are retained only for transparent reporting.
 
-The legacy `final_pass` and `final_pass_no_energy` columns preserve the current
-pipeline's historical rollup definitions and do not include CD4episcore as a
-hard gate. Use `final_candidates.csv` for the current final panel.
+The `final_pass` column is `amy_pose_pass AND safety_pass` and does not include
+CD4episcore as a hard gate. Use `final_candidates.csv` for the current final panel.
