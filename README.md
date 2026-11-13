@@ -48,24 +48,40 @@ ToxinPred3 must be installed separately at `filter/05_toxicity/tools/toxinpred3/
 
 ## Structure prediction
 
-`af3_daemon.py` keeps AlphaFold 3 resident in GPU memory across batches,
-communicating by files rather than sockets — the host writes JSONs and renames
-`.trigger.tmp` → `.trigger`; the daemon consumes them and writes `.done`.
+`af3/` folds the candidates with AlphaFold 3 and puts the cifs where
+`filter/01_pose_check` reads them: `structures/<seq_id>/<receptor>/<seq_id>_<receptor>_model.cif`
+(gitignored, 100+ GB). No daemon: one `docker run` over all inputs.
 
 ```bash
-bash start_af3_daemon.sh                      # container af3_daemon
-MEM_FRACTION=0.45 bash start_af3_daemon.sh    # share a busy GPU
+python3 af3/run_batch.py --msa-only           # 1. peptide MSAs -> data/af3_ref/ligand/<id>.a3m
+python3 af3/run_batch.py --dry-run            # 2. write the complex JSONs to af3/input/
+python3 af3/run_batch.py                      # 3. fold, copy cifs into structures/
+python3 af3/run_batch.py --seq GA_005 --receptor CTR --skip-done
 ```
 
-Runs `jiasin/alphafold3:latest` with `--gpus all`, AF3 weights at
-`/opt/model_parameter`. Docked structures land in `structures/` (gitignored,
-100+ GB).
+Default scope is the six candidates (GA_005, 006, 025, 078, 079, 090) against CTR.
 
-`data/af3_ref/` holds one AF3 template per receptor (219 MB). Nothing here reads
-them — the sole consumer is the GA repo's oracle — but they are tracked here
-because that repo gitignores its own byte-identical copy, which makes this
-history the only version-controlled one. Before dropping them, commit them
-there.
+- Complex = receptor (chain A) + G protein (chain G) + peptide (chain `L`, 37 aa with
+  C-terminal NH2), assembled from the template in `data/af3_ref/<RECEPTOR>/` by
+  `af3/build_inputs.py`. Receptor and G-protein MSAs are already in the template.
+- The peptide MSA is searched once with AF3's own data pipeline (jackhmmer, CPU only)
+  and cached per peptide, shared by all receptors. Folding runs with the data
+  pipeline off.
+- **Setup: create `.env` first.** The scripts need a Docker image with AlphaFold 3, the
+  weights and the genetic databases, and there are no built-in paths. Copy the template
+  and edit it for your machine (`.env` is gitignored, so it is never committed):
+
+  ```bash
+  cp .env.example .env     # then set AF3_IMAGE, AF3_MODEL_DIR, AF3_DB_DIR
+  ```
+
+  `AF3_MSA_CPUS` and `AF3_MEM_FRACTION` are optional. A missing required variable stops
+  the script with a message naming it.
+
+`data/af3_ref/` holds one AF3 template per receptor (219 MB), read by
+`af3/build_inputs.py`. They are also used by the GA repo's oracle, which gitignores
+its own byte-identical copy, so this history is the only version-controlled one.
+Before dropping them, commit them there. `data/af3_ref/ligand/` caches the peptide MSAs.
 
 > `run_docking.py` **does not run against the current HEAD.** It imports a `GA/`
 > directory that no longer exists here, reads `filter/ga_final_ranked.csv` which
@@ -81,7 +97,7 @@ What the code needs, as evidenced by the code:
 - conda envs by name: `af3_ml` (stage 01), `pyrosetta` (stage 02),
   `raghava_tools` (stage 05); stage 03 needs none
 - numpy, biopython, pyrosetta
-- Docker and an NVIDIA GPU for the AF3 daemon
+- Docker and an NVIDIA GPU for AF3 (the peptide MSA step is CPU only)
 
 ## Open questions
 
