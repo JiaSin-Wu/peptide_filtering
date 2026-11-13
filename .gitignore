@@ -20,10 +20,6 @@ filter/*/tools/toxinpred2/
 filter/*/tools/toxinpred3/
 filter/*/tools/temp_embeddings/
 
-# Downloaded reference database (MMseqs2 human proteome) + scratch dirs
-filter/**/human_proteome*
-filter/**/self_similarity/tmp*/
-
 # Licensed third-party binaries (e.g. FoldX) - not redistributable
 filter/**/foldx
 

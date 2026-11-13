@@ -83,11 +83,6 @@ Default scope is the six candidates (GA_005, 006, 025, 078, 079, 090) against CT
 its own byte-identical copy, so this history is the only version-controlled one.
 Before dropping them, commit them there. `data/af3_ref/ligand/` caches the peptide MSAs.
 
-> `run_docking.py` **does not run against the current HEAD.** It imports a `GA/`
-> directory that no longer exists here, reads `filter/ga_final_ranked.csv` which
-> is not in the repo, and hardcodes `/home/jiasin/...` paths. Use the GA repo's
-> equivalents.
-
 ## Environment
 
 No dependency manifest exists — no `environment.yml`, no `requirements.txt`.
@@ -107,10 +102,9 @@ What the code needs, as evidenced by the code:
    could be found. The 92 rows are bounded below by AMY1R 0.4415 / AMY2R 0.4185 /
    AMY3R 0.3972 and above by CTR 0.2977 / CGRP 0.6730 / AM1R 0.4983 /
    AM2R 0.4990 — observed bounds, not the intended cut-offs.
-2. Which `structures/` layout the pose check consumed. `run_docking.py` writes
-   `<seq_id>/<receptor>/`; the tree on lab_193 is organised by receptor.
-3. Why `filter/06_immunogenicity/self_similarity/` holds an MMseqs2 human
-   proteome database that nothing in the pipeline reads.
+2. Which `structures/` layout the pose check consumed historically. The pose check
+   reads `<seq_id>/<receptor>/` (what `af3/run_batch.py` writes); the tree on lab_193
+   is organised by receptor.
 
 ## History
 
