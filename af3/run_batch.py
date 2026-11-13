@@ -1,6 +1,7 @@
 """
 run_batch.py — build AF3 inputs, run AlphaFold3 once over all of them, and copy the
-resulting cif folders to structures/<seq_id>/<receptor>/ (what pose check reads).
+resulting cif folders to structures/<seq_id>/<receptor>/ (what pose check reads; the
+folder is moved out of af3/output/, so only one copy is kept).
 
 No daemon: a single `docker run ... run_alphafold.py --input_dir` loads the model once
 and folds every JSON in af3/input/. The JSONs carry their own MSA and
@@ -81,7 +82,8 @@ def save_outputs(job_names: list[str]) -> None:
         dest = DEST / seq_id / receptor
         if dest.exists():
             shutil.rmtree(dest)
-        shutil.copytree(src, dest)
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(src), str(dest))      # move, so only one copy is kept
         print(f"  saved {dest.relative_to(ROOT)}", flush=True)
 
 
