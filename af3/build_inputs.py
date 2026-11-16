@@ -11,9 +11,12 @@ Differences from the historic builder:
   * The peptide MSA comes from AF3's own data pipeline (jackhmmer against
     /opt/af3_databases), run once on the peptide alone, instead of mmseqs2.
 
-Peptide = PEPTIDE_PREFIX (13 aa) + seq_24aa (37 aa), C-terminal NH2 amidation.
-The peptide MSA query line has its last residue replaced by X (modified residue),
-as in the historic pipeline. The MSA's templates are discarded (templates: []).
+Peptide = PEPTIDE_PREFIX (13) + seq_24aa = 37 real residues, plus a trailing
+placeholder "X" (38 total) that carries the C-terminal NH2 (ptmPosition = 38).
+Putting NH2 on a real residue makes AF3 overwrite it (to_ccd_sequence), so the cap gets
+its own X position, as in GA/common/peptide_format.py and helm_to_af3.py.
+The peptide MSA is extended by one column (query: X, other rows: gap).
+The MSA's templates are discarded (templates: []).
 """
 
 import copy
@@ -36,6 +39,11 @@ MSA_WORK    = ROOT / "af3" / "output" / "msa_search"   # scratch: peptide-only d
 
 PEPTIDE_PREFIX = "KCNTATCATQRLA"   # fixed N-terminal 13 aa (amylin ring + helix)
 PEPTIDE_CHAIN  = "L"
+
+
+def full_peptide_sequence(seq_24: str) -> str:
+    """AF3 chain-L sequence: prefix + seq_24aa + trailing placeholder 'X' (NH2 cap site)."""
+    return PEPTIDE_PREFIX + seq_24 + "X"
 
 IMAGE    = config.AF3_IMAGE
 DB_DIR   = config.AF3_DB_DIR
@@ -70,18 +78,28 @@ def load_peptides(ids: list[str]) -> dict[str, str]:
 # ── peptide MSA (AF3 data pipeline, peptide alone, CPU only) ──────────────────
 
 def _query_only(seq_24: str) -> str:
-    full = PEPTIDE_PREFIX + seq_24
-    return f">query\n{full[:-1]}X\n"
+    return f">query\n{full_peptide_sequence(seq_24)}\n"
 
 
 def _set_query_x(a3m: str, seq_24: str) -> str:
-    """Make the first (query) record's sequence end in X for the NH2-modified residue."""
+    """Extend the raw 37-aa MSA by one column for the trailing placeholder X.
+
+    The query keeps its real last residue and gets 'X' appended; every other row gets
+    a gap there, so all rows stay the same length as the 38-aa query.
+    """
     lines = a3m.splitlines()
     full = PEPTIDE_PREFIX + seq_24
     if len(lines) < 2 or lines[1].strip() != full:
         raise ValueError("MSA query line does not match the peptide sequence")
-    lines[1] = full[:-1] + "X"
-    return "\n".join(lines) + "\n"
+    out = []
+    for i, line in enumerate(lines):
+        if line.startswith(">") or not line.strip():
+            out.append(line)
+        elif i == 1:
+            out.append(line.strip() + "X")
+        else:
+            out.append(line.strip() + "-")
+    return "\n".join(out) + "\n"
 
 
 def compute_msas(peptides: dict[str, str], no_msa: bool = False) -> dict[str, str]:
@@ -149,7 +167,9 @@ def build_complex_json(peptide_id: str, seq_24: str, peptide_msa: str,
     if any(list(s.values())[0]["id"] == PEPTIDE_CHAIN for s in d["sequences"]):
         raise ValueError(f"template for {receptor} already has chain {PEPTIDE_CHAIN}")
 
-    full = PEPTIDE_PREFIX + seq_24
+    # Trailing placeholder X carries the NH2 cap; ptmPosition must point at X, not at the
+    # last real residue (AF3 to_ccd_sequence() would overwrite that residue).
+    full = full_peptide_sequence(seq_24)
     d["sequences"].append({"protein": {
         "id": PEPTIDE_CHAIN,
         "sequence": full,
